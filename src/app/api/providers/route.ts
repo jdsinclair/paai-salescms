@@ -42,6 +42,20 @@ function buildWhere(params: URLSearchParams) {
     );
   }
 
+  const hasEmail = params.get("hasEmail");
+  if (hasEmail === "true") {
+    conditions.push(
+      sql`(${providers.email} IS NOT NULL AND ${providers.email} != '' OR ${providers.contactEmail} IS NOT NULL AND ${providers.contactEmail} != '')`
+    );
+  }
+
+  const hasPhone = params.get("hasPhone");
+  if (hasPhone === "true") {
+    conditions.push(
+      sql`(${providers.phone} IS NOT NULL AND ${providers.phone} != 'NO_PHONE' AND ${providers.phone} != 'NOT_FOUND' AND ${providers.phone} != 'ERROR')`
+    );
+  }
+
   // Tag filter
   const tagFilter = params.get("tagFilter");
   if (tagFilter) {
@@ -171,10 +185,13 @@ export async function GET(req: NextRequest) {
     authorized_official_title: r.authorizedOfficialTitle,
     authorized_official_phone: r.authorizedOfficialPhone,
     other_identifiers: r.otherIdentifiers,
+    contact_email: r.contactEmail,
+    email_source: r.emailSource,
     endpoints_json: r.endpointsJson,
     practice_locations_json: r.practiceLocationsJson,
     other_names_json: r.otherNamesJson,
     enriched: !!r.phone && r.phone !== "NO_PHONE" && r.phone !== "NOT_FOUND",
+    has_email: !!(r.email || r.contactEmail),
     tags: tagMap[r.npi] || [],
   }));
 

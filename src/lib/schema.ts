@@ -64,7 +64,9 @@ export const providers = pgTable("providers", {
   endpointsJson: text("endpoints_json"),
   practiceLocationsJson: text("practice_locations_json"),
   otherNamesJson: text("other_names_json"),
-  email: text("email"),
+  email: text("email"),             // from NPPES endpoints (Direct Messaging)
+  contactEmail: text("contact_email"), // from Clay/Apollo/manual enrichment
+  emailSource: text("email_source"),   // "nppes", "clay", "apollo", "manual"
   website: text("website"),
   nppesRaw: text("nppes_raw"),
   // Codes stored as JSON string

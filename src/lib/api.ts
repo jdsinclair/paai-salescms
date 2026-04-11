@@ -47,6 +47,8 @@ function filtersToParams(filters: Filters, sort: { field: string; dir: string },
   if (filters.indivOnly) p.set("entityType", "I");
   if (filters.search) p.set("search", filters.search);
   if (filters.tagFilter.length > 0) p.set("tagFilter", filters.tagFilter.join(","));
+  if (filters.hasEmail) p.set("hasEmail", "true");
+  if (filters.hasPhone) p.set("hasPhone", "true");
 
   // Preset-specific: underserved caps ratio at 0.3
   if (filters.preset === "underserved") p.set("maxAssessRatio", "0.3");

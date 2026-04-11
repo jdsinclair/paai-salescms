@@ -148,10 +148,12 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
           )}
 
           {/* Phone + email row */}
-          {(hasPhone || email) && (
-            <div className="mt-1.5 flex gap-4">
+          {(hasPhone || email || p.contact_email) && (
+            <div className="mt-1.5 flex flex-col gap-0.5">
               {hasPhone && <div><span className="text-[10px] text-dim">Phone: </span><span className="text-xs text-ok font-semibold">{phone}</span></div>}
-              {email && <div><span className="text-[10px] text-dim">Email: </span><span className="text-xs text-accent font-semibold">{email}</span></div>}
+              {p.contact_email && <div><span className="text-[10px] text-dim">Email: </span><span className="text-xs text-accent font-semibold">{p.contact_email}</span> <span className="text-[9px] text-dim">({p.email_source || "enriched"})</span></div>}
+              {email && !p.contact_email && <div><span className="text-[10px] text-dim">Email: </span><span className="text-xs text-accent font-semibold">{email}</span> <span className="text-[9px] text-dim">(NPPES)</span></div>}
+              {email && p.contact_email && <div><span className="text-[10px] text-dim">NPPES Direct: </span><span className="text-xs text-dim">{email}</span></div>}
             </div>
           )}
         </div>

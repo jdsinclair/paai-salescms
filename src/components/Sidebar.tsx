@@ -159,9 +159,19 @@ export default function Sidebar({ states, filters, setFilters, applyPreset, allT
         ))}
       </div>
 
-      {/* Code groups */}
+      {/* Contact & Code filters */}
       <div className="px-4 py-3 border-b border-border">
-        <h3 className="text-[11px] uppercase tracking-widest text-dim mb-2">Code Groups</h3>
+        <h3 className="text-[11px] uppercase tracking-widest text-dim mb-2">Contact & Enrichment</h3>
+        {[
+          { key: "hasEmail", label: "Has email" },
+          { key: "hasPhone", label: "Has phone" },
+        ].map((c) => (
+          <label key={c.key} className="flex items-center gap-1.5 text-xs mb-1 cursor-pointer text-txt">
+            <input type="checkbox" checked={filters[c.key as keyof Filters] as boolean} onChange={(e) => updateFilter(c.key as keyof Filters, e.target.checked)} className="accent-accent" />
+            {c.label}
+          </label>
+        ))}
+        <h3 className="text-[11px] uppercase tracking-widest text-dim mb-2 mt-3">Code Groups</h3>
         {[
           { key: "neuroOnly", label: "Neuro/Dev codes present" },
           { key: "orgOnly", label: "Organizations only (entity=O)" },

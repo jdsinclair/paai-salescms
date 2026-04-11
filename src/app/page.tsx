@@ -25,6 +25,8 @@ const DEFAULT_FILTERS: Filters = {
   search: "",
   preset: "",
   tagFilter: [],
+  hasEmail: false,
+  hasPhone: false,
 };
 
 export default function Home() {

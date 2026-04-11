@@ -60,7 +60,10 @@ export interface Provider {
   authorized_official_title?: string;
   authorized_official_phone?: string;
   other_identifiers?: string;
+  contact_email?: string;
+  email_source?: string;
   enriched?: boolean;
+  has_email?: boolean;
   tags?: string[];
 }
 
@@ -77,6 +80,8 @@ export interface Filters {
   search: string;
   preset: string;
   tagFilter: string[];
+  hasEmail: boolean;
+  hasPhone: boolean;
 }
 
 export interface Segment {
