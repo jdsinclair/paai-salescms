@@ -80,6 +80,49 @@
   }
   .tip-wrap:hover .tip-body { display: block; }
 
+  /* Preset bucket tooltips */
+  .preset-tip-wrap {
+    position: absolute;
+    top: 8px;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(99,102,241,0.2);
+    color: #6366f1;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: help;
+    z-index: 5;
+  }
+  .preset-tip-wrap:hover {
+    background: rgba(99,102,241,0.4);
+  }
+  .preset-tip-body {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 12px);
+    transform: translateY(-50%);
+    background: #1e1e30;
+    border: 1px solid #6366f1;
+    border-radius: 6px;
+    padding: 12px 14px;
+    width: 320px;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: #e0e0ee;
+    white-space: normal;
+    z-index: 100;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+    pointer-events: none;
+  }
+  .preset-tip-wrap:hover .preset-tip-body { display: block; }
+
   /* Make sure table inherits font */
   table { font-family: inherit; }
   th, td { font-family: inherit; }

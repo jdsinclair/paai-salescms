@@ -18,12 +18,43 @@ interface Props {
 }
 
 const PRESETS = [
-  { key: "all_assessment", label: "All Assessment Providers (3,988)", desc: "Everyone who billed at least 1 assessment unit", highlight: true },
-  { key: "top5", label: "Top 5% Assessment Shops", desc: "High units + high ratio + high add-ons" },
-  { key: "scaling", label: "Scaling Clinics", desc: "Medium units + rising admin codes" },
-  { key: "underserved", label: "Underserved (Opportunity)", desc: "High admin, low eval = inefficiency" },
-  { key: "neuropsych", label: "Neuropsych Heavy", desc: "High 96132/33 + high add-ons" },
-  { key: "adhd", label: "High Volume ADHD Clinics", desc: "High 96130 + low 96132" },
+  {
+    key: "all_assessment",
+    label: "All Assessment Providers",
+    desc: "Everyone who billed at least 1 assessment unit",
+    highlight: true,
+    tip: "The full universe of providers who billed any 96130/31/32/33 to Medicare. This is your total addressable market before any filtering. Includes everyone from solo practitioners doing a handful of evals per year to large neuropsych groups. Start here, then narrow down.",
+  },
+  {
+    key: "top5",
+    label: "Top 5% Assessment Shops",
+    desc: "High units + high ratio + high add-ons",
+    tip: "Practices where testing is the core business, not a side offering. Requires 100+ assessment units/year, 40%+ of their billing is evaluations, 25%+ add-on codes (meaning multi-hour comprehensive batteries, not quick screens), and $20K+ in assessment revenue. These are established, high-throughput testing operations.",
+  },
+  {
+    key: "scaling",
+    label: "Scaling Clinics",
+    desc: "Medium units + rising admin codes",
+    tip: "Mid-size practices that are actively building their testing capacity. They have technicians administering tests (96136-39 present), meaningful assessment volume (20+ units), and real revenue ($5K+). These clinics are investing in infrastructure — they're hiring psychometrists and growing. Good timing for outreach.",
+  },
+  {
+    key: "underserved",
+    label: "Underserved (Opportunity)",
+    desc: "High admin, low eval = inefficiency",
+    tip: "Practices with a mismatch: lots of test administration happening (100+ admin units from 96136-39) but a low assessment ratio (<30%). This means technicians are running tests, but the practice isn't converting that into evaluation billing efficiently. Could indicate workflow bottlenecks, scoring backlogs, or report-writing capacity issues — exactly the pain points your solution addresses.",
+  },
+  {
+    key: "neuropsych",
+    label: "Neuropsych Heavy",
+    desc: "High 96132/33 + high complexity",
+    tip: "Practices doing complex neuropsychological evaluations — the kind involving TBI, dementia differentials, ASD/ADHD comprehensive workups, and forensic cases. Filtered by neuro codes present (96132/33), complexity >20% (multi-hour batteries), and $10K+ revenue. These providers bill longer sessions and need sophisticated test platforms.",
+  },
+  {
+    key: "adhd",
+    label: "High Volume ADHD Clinics",
+    desc: "High 96130 + low neuropsych",
+    tip: "Practices doing high-volume psychological (not neuropsych) evaluations — primarily ADHD, learning disability, and behavioral assessments. High 96130 billing but low 96132/33 presence, meaning they stick to standard psych eval codes rather than neuropsych. These are often pediatric or school-age focused clinics doing structured, repeatable assessment batteries at scale.",
+  },
 ];
 
 export default function Sidebar({ states, filters, setFilters, applyPreset, allTagNames, savedSegments, loadSegment, deleteSegment }: Props) {
@@ -59,20 +90,25 @@ export default function Sidebar({ states, filters, setFilters, applyPreset, allT
       <div className="px-4 py-3 border-b border-border">
         <h3 className="text-[11px] uppercase tracking-widest text-dim mb-2">Lead Buckets</h3>
         {PRESETS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => handlePreset(p.key)}
-            className={`w-full text-left px-2.5 py-1.5 rounded border mb-1 text-[11px] cursor-pointer transition-all ${
-              activePreset === p.key
-                ? "border-accent bg-accent/15 text-txt"
-                : p.highlight
-                ? "border-ok bg-surface2 text-txt hover:bg-bg"
-                : "border-border bg-surface2 text-txt hover:border-accent hover:bg-bg"
-            }`}
-          >
-            <span className="font-semibold block">{p.label}</span>
-            <span className="block text-[10px] text-dim mt-0.5">{p.desc}</span>
-          </button>
+          <div key={p.key} className="relative mb-1">
+            <button
+              onClick={() => handlePreset(p.key)}
+              className={`w-full text-left px-2.5 py-1.5 pr-8 rounded border text-[11px] cursor-pointer transition-all ${
+                activePreset === p.key
+                  ? "border-accent bg-accent/15 text-txt"
+                  : p.highlight
+                  ? "border-ok bg-surface2 text-txt hover:bg-bg"
+                  : "border-border bg-surface2 text-txt hover:border-accent hover:bg-bg"
+              }`}
+            >
+              <span className="font-semibold block">{p.label}</span>
+              <span className="block text-[10px] text-dim mt-0.5">{p.desc}</span>
+            </button>
+            <span className="preset-tip-wrap">
+              ?
+              <span className="preset-tip-body">{p.tip}</span>
+            </span>
+          </div>
         ))}
         <button
           onClick={() => { setActivePreset(""); applyPreset("clear"); }}
