@@ -34,6 +34,14 @@ export interface Provider {
   fax?: string;
   email?: string;
   website?: string;
+  first_name?: string;
+  last_name?: string;
+  address1?: string;
+  address2?: string;
+  taxonomy?: string;
+  sex?: string;
+  npi_status?: string;
+  enriched?: boolean;
   tags?: string[];
 }
 

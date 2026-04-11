@@ -26,12 +26,18 @@ export const providers = pgTable("providers", {
   crmLastContact: timestamp("crm_last_contact"),
   crmNextFollowup: timestamp("crm_next_followup"),
   crmOwner: text("crm_owner"),
-  // Enrichment fields
+  // Enrichment fields (from NPPES)
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  address1: text("address1"),
+  address2: text("address2"),
   phone: text("phone"),
   fax: text("fax"),
   email: text("email"),
   website: text("website"),
   taxonomy: text("taxonomy"),
+  sex: text("sex"),
+  npiStatus: text("npi_status"),
   // Codes stored as JSON string
   codesJson: text("codes_json"),
   createdAt: timestamp("created_at").defaultNow(),

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Provider } from "@/lib/types";
 
 const GROUP_STYLES: Record<string, { bg: string; text: string }> = {
@@ -13,9 +14,13 @@ interface Props {
   provider: Provider;
   onClose: () => void;
   onRemoveTag: (tag: string) => void;
+  onEnriched?: () => void;
 }
 
-export default function DetailPanel({ provider: p, onClose, onRemoveTag }: Props) {
+export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnriched }: Props) {
+  const [enriching, setEnriching] = useState(false);
+  const [enrichResult, setEnrichResult] = useState<Record<string, string> | null>(null);
+
   const buckets: { label: string; bg: string; text: string; border: string }[] = [];
   if (p.assessment_units >= 100 && p.assessment_ratio >= 0.4 && p.complexity_score >= 0.25)
     buckets.push({ label: "TOP 5%", bg: "rgba(34,197,94,0.2)", text: "#4ade80", border: "rgba(34,197,94,0.3)" });
@@ -27,6 +32,39 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag }: Props
   const sortedCodes = Object.entries(p.codes || {}).sort((a, b) => b[1].revenue - a[1].revenue);
   const tags = p.tags || [];
 
+  async function handleEnrich() {
+    setEnriching(true);
+    try {
+      const res = await fetch("/api/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ npi: p.npi }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setEnrichResult(data.enriched);
+        onEnriched?.();
+      } else {
+        setEnrichResult({ error: data.error || "Failed" });
+      }
+    } catch {
+      setEnrichResult({ error: "Network error" });
+    } finally {
+      setEnriching(false);
+    }
+  }
+
+  // Use enriched data if available (from DB or just-fetched)
+  const firstName = enrichResult?.firstName || p.first_name || "";
+  const lastName = enrichResult?.lastName || p.last_name || "";
+  const phone = enrichResult?.phone || p.phone;
+  const fax = enrichResult?.fax || p.fax;
+  const taxonomy = enrichResult?.taxonomy || p.taxonomy;
+  const address1 = enrichResult?.address1 || p.address1;
+  const isEnriched = p.enriched || !!enrichResult;
+  const displayPhone = phone && phone !== "NO_PHONE" && phone !== "NOT_FOUND" ? phone : null;
+  const displayFax = fax && fax !== "NO_PHONE" && fax !== "NOT_FOUND" ? fax : null;
+
   return (
     <div className="w-96 min-w-96 bg-surface border-l border-border overflow-y-auto p-4">
       <div className="flex justify-between items-center mb-3">
@@ -34,10 +72,66 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag }: Props
         <button onClick={onClose} className="px-2 py-0.5 rounded border border-border bg-surface2 text-[10px] text-txt cursor-pointer hover:bg-border">x</button>
       </div>
 
-      <div className="text-[11px] text-dim mb-3">
+      {/* NPI Info */}
+      <div className="text-[11px] text-dim mb-1">
         NPI: {p.npi} &middot; {p.entity_type === "O" ? "Organization" : "Individual"} &middot; {p.credentials || "—"}
       </div>
 
+      {/* Name breakdown from NPPES */}
+      <div className="bg-bg border border-border rounded p-2.5 mb-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div className="text-[10px] text-dim uppercase">First Name</div>
+            <div className="text-xs font-semibold text-txt mt-0.5">{firstName || <span className="text-dim italic">—</span>}</div>
+          </div>
+          <div>
+            <div className="text-[10px] text-dim uppercase">Last Name</div>
+            <div className="text-xs font-semibold text-txt mt-0.5">{lastName || <span className="text-dim italic">—</span>}</div>
+          </div>
+        </div>
+        {taxonomy && (
+          <div className="mt-2">
+            <div className="text-[10px] text-dim uppercase">NPPES Taxonomy</div>
+            <div className="text-[11px] text-info mt-0.5">{taxonomy}</div>
+          </div>
+        )}
+        {address1 && (
+          <div className="mt-2">
+            <div className="text-[10px] text-dim uppercase">Practice Address</div>
+            <div className="text-[11px] text-txt mt-0.5">{address1}</div>
+          </div>
+        )}
+        {(displayPhone || displayFax) && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {displayPhone && (
+              <div>
+                <div className="text-[10px] text-dim uppercase">Phone</div>
+                <div className="text-xs text-ok mt-0.5">{displayPhone}</div>
+              </div>
+            )}
+            {displayFax && (
+              <div>
+                <div className="text-[10px] text-dim uppercase">Fax</div>
+                <div className="text-xs text-txt mt-0.5">{displayFax}</div>
+              </div>
+            )}
+          </div>
+        )}
+        {!isEnriched && (
+          <button
+            onClick={handleEnrich}
+            disabled={enriching}
+            className="mt-2 w-full px-3 py-1.5 rounded border border-info bg-info/10 text-info text-[11px] cursor-pointer hover:bg-info/20 disabled:opacity-50"
+          >
+            {enriching ? "Fetching from NPPES..." : "Enrich from NPI Registry"}
+          </button>
+        )}
+        {isEnriched && !firstName && (
+          <div className="mt-1 text-[10px] text-dim">Enriched — no additional name data found</div>
+        )}
+      </div>
+
+      {/* Buckets */}
       <div className="mb-3 flex gap-1 flex-wrap">
         {buckets.length > 0 ? buckets.map((b) => (
           <span key={b.label} className="px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: b.bg, color: b.text, border: `1px solid ${b.border}` }}>{b.label}</span>
@@ -83,19 +177,11 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag }: Props
         ))}
       </div>
 
-      {/* Contact info if enriched */}
-      {(p.phone || p.email) && (
-        <div className="mb-4 bg-bg border border-border rounded p-2">
-          <div className="text-[10px] text-dim uppercase mb-1">Contact</div>
-          {p.phone && <div className="text-xs text-txt">{p.phone}</div>}
-          {p.email && <div className="text-xs text-accent">{p.email}</div>}
-        </div>
-      )}
-
       <div className="text-[11px] text-dim mb-4">
         {p.city}, {p.state} {p.zip} &middot; {p.provider_type}
       </div>
 
+      {/* Code Breakdown */}
       <h3 className="text-xs font-semibold mb-2 text-txt">CPT Code Breakdown</h3>
       {sortedCodes.map(([code, data]) => {
         const gs = GROUP_STYLES[data.group];

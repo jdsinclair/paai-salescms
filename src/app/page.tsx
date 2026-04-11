@@ -312,6 +312,7 @@ export default function Home() {
           provider={detailProvider}
           onClose={() => setDetailNpi(null)}
           onRemoveTag={(tag) => handleRemoveTag(detailProvider.npi, tag)}
+          onEnriched={loadProviders}
         />
       )}
 

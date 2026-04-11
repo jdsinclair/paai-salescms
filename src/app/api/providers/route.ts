@@ -143,7 +143,16 @@ export async function GET(req: NextRequest) {
     crm_next_followup: r.crmNextFollowup,
     crm_owner: r.crmOwner,
     phone: r.phone,
+    fax: r.fax,
     email: r.email,
+    first_name: r.firstName,
+    last_name: r.lastName,
+    address1: r.address1,
+    address2: r.address2,
+    taxonomy: r.taxonomy,
+    sex: r.sex,
+    npi_status: r.npiStatus,
+    enriched: !!r.phone && r.phone !== "NO_PHONE" && r.phone !== "NOT_FOUND",
     tags: tagMap[r.npi] || [],
   }));
 
