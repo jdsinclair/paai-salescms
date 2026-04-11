@@ -1,10 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { Filters } from "@/lib/types";
 import type { SegmentData } from "@/lib/api";
 
 type Segment = SegmentData;
+
+function PresetTip({ tip }: { tip: string }) {
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const ref = useRef<HTMLSpanElement>(null);
+
+  const handleEnter = useCallback(() => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
+    }
+    setShow(true);
+  }, []);
+
+  return (
+    <>
+      <span
+        ref={ref}
+        onMouseEnter={handleEnter}
+        onMouseLeave={() => setShow(false)}
+        className="absolute top-2 right-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold cursor-help z-5"
+        style={{ background: "rgba(99,102,241,0.2)", color: "#6366f1" }}
+      >
+        ?
+      </span>
+      {show && typeof document !== "undefined" && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+            transform: "translateY(-50%)",
+            width: 340,
+            background: "#1e1e30",
+            border: "1px solid #6366f1",
+            borderRadius: 6,
+            padding: "12px 14px",
+            fontSize: 11,
+            fontWeight: 400,
+            lineHeight: 1.6,
+            color: "#e0e0ee",
+            whiteSpace: "normal" as const,
+            zIndex: 9999,
+            boxShadow: "0 4px 24px rgba(0,0,0,0.7)",
+            pointerEvents: "none" as const,
+            fontFamily: "inherit",
+          }}
+        >
+          {tip}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 interface Props {
   states: string[];
@@ -104,10 +160,7 @@ export default function Sidebar({ states, filters, setFilters, applyPreset, allT
               <span className="font-semibold block">{p.label}</span>
               <span className="block text-[10px] text-dim mt-0.5">{p.desc}</span>
             </button>
-            <span className="preset-tip-wrap">
-              ?
-              <span className="preset-tip-body">{p.tip}</span>
-            </span>
+            <PresetTip tip={p.tip} />
           </div>
         ))}
         <button
