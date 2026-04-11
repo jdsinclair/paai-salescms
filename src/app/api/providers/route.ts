@@ -171,6 +171,9 @@ export async function GET(req: NextRequest) {
     authorized_official_title: r.authorizedOfficialTitle,
     authorized_official_phone: r.authorizedOfficialPhone,
     other_identifiers: r.otherIdentifiers,
+    endpoints_json: r.endpointsJson,
+    practice_locations_json: r.practiceLocationsJson,
+    other_names_json: r.otherNamesJson,
     enriched: !!r.phone && r.phone !== "NO_PHONE" && r.phone !== "NOT_FOUND",
     tags: tagMap[r.npi] || [],
   }));

@@ -61,6 +61,9 @@ export const providers = pgTable("providers", {
   authorizedOfficialPhone: text("authorized_official_phone"),
   // Other
   otherIdentifiers: text("other_identifiers"),
+  endpointsJson: text("endpoints_json"),
+  practiceLocationsJson: text("practice_locations_json"),
+  otherNamesJson: text("other_names_json"),
   email: text("email"),
   website: text("website"),
   nppesRaw: text("nppes_raw"),

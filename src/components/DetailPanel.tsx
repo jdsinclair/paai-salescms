@@ -22,14 +22,16 @@ function Field({ label, value, color }: { label: string; value?: string | null; 
   return (
     <div className="mt-1.5">
       <div className="text-[10px] text-dim uppercase">{label}</div>
-      <div className="text-[11px] mt-0.5" style={color ? { color } : undefined}>{value}</div>
+      <div className="text-[11px] mt-0.5 break-words" style={color ? { color } : undefined}>{value}</div>
     </div>
   );
 }
 
 export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnriched }: Props) {
   const [enriching, setEnriching] = useState(false);
-  const [enrichResult, setEnrichResult] = useState<Record<string, string | null> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [enrichResult, setEnrichResult] = useState<Record<string, any> | null>(null);
+  const [npiExpanded, setNpiExpanded] = useState(false);
 
   const buckets: { label: string; bg: string; text: string; border: string }[] = [];
   if (p.assessment_units >= 100 && p.assessment_ratio >= 0.4 && p.complexity_score >= 0.25)
@@ -54,22 +56,18 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
       if (data.ok) {
         setEnrichResult(data.enriched);
         onEnriched?.();
-      } else {
-        setEnrichResult({ error: data.error || "Failed" });
       }
-    } catch {
-      setEnrichResult({ error: "Network error" });
-    } finally {
-      setEnriching(false);
-    }
+    } catch { /* ignore */ }
+    finally { setEnriching(false); }
   }
 
-  // Use enriched data from DB or just-fetched
+  // Merge enrichResult (just-fetched) over provider DB data
   const e = enrichResult || {};
   const firstName = e.firstName ?? p.first_name;
   const lastName = e.lastName ?? p.last_name;
   const phone = e.phone ?? p.phone;
   const fax = e.fax ?? p.fax;
+  const email = e.email ?? p.email;
   const taxonomy = e.taxonomy ?? p.taxonomy;
   const taxonomyCode = e.taxonomyCode ?? p.taxonomy_code;
   const address1 = e.address1 ?? p.address1;
@@ -100,7 +98,7 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
 
   const locationLine = [address1, address2].filter(Boolean).join(", ");
   const locationCityLine = [locationCity, locationState, locationZip?.slice(0, 5)].filter(Boolean).join(", ");
-  const mailingLine = [mailingAddress1, mailingCity, mailingState, mailingZip?.slice(0, 5)].filter(Boolean).join(", ");
+  const mailingFull = [mailingAddress1, mailingCity, mailingState, mailingZip?.slice(0, 5)].filter(Boolean).join(", ");
 
   return (
     <div className="w-[420px] min-w-[420px] bg-surface border-l border-border overflow-y-auto p-4">
@@ -111,102 +109,111 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
 
       <div className="text-[11px] text-dim mb-1">
         NPI: {p.npi} &middot; {enumerationType || (p.entity_type === "O" ? "NPI-2" : "NPI-1")} &middot; {p.credentials || "—"}
-        {npiStatus && <span> &middot; Status: <span className={npiStatus === "A" ? "text-ok" : "text-err"}>{npiStatus === "A" ? "Active" : npiStatus}</span></span>}
+        {npiStatus && <span> &middot; <span className={npiStatus === "A" ? "text-ok" : "text-err"}>{npiStatus === "A" ? "Active" : npiStatus}</span></span>}
       </div>
 
-      {/* NPPES Enrichment Block */}
-      <div className="bg-bg border border-border rounded p-3 mb-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] text-dim uppercase font-semibold tracking-wider">NPI Registry Data</span>
+      {/* NPI Registry Data */}
+      <div className="bg-bg border border-border rounded mb-3 overflow-hidden">
+        {/* Preview (always visible) */}
+        <div className="p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] text-dim uppercase font-semibold tracking-wider">NPI Registry</span>
+            <button
+              onClick={handleEnrich}
+              disabled={enriching}
+              className="px-2 py-0.5 rounded border border-info bg-info/10 text-info text-[10px] cursor-pointer hover:bg-info/20 disabled:opacity-50"
+            >
+              {enriching ? "Fetching..." : isEnriched ? "Retry" : "Enrich"}
+            </button>
+          </div>
+
+          {/* Name row */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="text-[10px] text-dim uppercase">First Name</div>
+              <div className="text-xs font-semibold text-txt mt-0.5">{firstName || <span className="text-dim italic">—</span>}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-dim uppercase">Last Name</div>
+              <div className="text-xs font-semibold text-txt mt-0.5">{lastName || <span className="text-dim italic">—</span>}</div>
+            </div>
+          </div>
+
+          {/* Key fields always visible */}
+          {taxonomy && (
+            <div className="mt-1.5">
+              <div className="text-[10px] text-dim uppercase">Taxonomy</div>
+              <div className="text-[11px] text-info mt-0.5">{taxonomy}</div>
+            </div>
+          )}
+
+          {/* Phone + email row */}
+          {(hasPhone || email) && (
+            <div className="mt-1.5 flex gap-4">
+              {hasPhone && <div><span className="text-[10px] text-dim">Phone: </span><span className="text-xs text-ok font-semibold">{phone}</span></div>}
+              {email && <div><span className="text-[10px] text-dim">Email: </span><span className="text-xs text-accent font-semibold">{email}</span></div>}
+            </div>
+          )}
+        </div>
+
+        {/* Expand chevron */}
+        {isEnriched && (
           <button
-            onClick={handleEnrich}
-            disabled={enriching}
-            className="px-2 py-0.5 rounded border border-info bg-info/10 text-info text-[10px] cursor-pointer hover:bg-info/20 disabled:opacity-50"
+            onClick={() => setNpiExpanded(!npiExpanded)}
+            className="w-full flex items-center justify-center gap-1 py-1 border-t border-border text-[10px] text-dim cursor-pointer hover:text-txt hover:bg-surface2 transition-colors"
           >
-            {enriching ? "Fetching..." : isEnriched ? "Retry Enrich" : "Enrich from NPPES"}
+            {npiExpanded ? "▲▲ Less" : "▼▼ Full NPI Details"}
           </button>
-        </div>
-
-        {/* Name */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <div className="text-[10px] text-dim uppercase">First Name</div>
-            <div className="text-xs font-semibold text-txt mt-0.5">{firstName || <span className="text-dim italic">—</span>}</div>
-          </div>
-          <div>
-            <div className="text-[10px] text-dim uppercase">Last Name</div>
-            <div className="text-xs font-semibold text-txt mt-0.5">{lastName || <span className="text-dim italic">—</span>}</div>
-          </div>
-        </div>
-
-        {sex && sex !== "--" && (
-          <div className="mt-1.5 text-[11px] text-dim">Gender: {sex === "M" ? "Male" : sex === "F" ? "Female" : sex}</div>
         )}
 
-        {/* Org fields */}
-        <Field label="Organization Name" value={orgName} />
-        {authorizedOfficial && (
-          <div className="mt-1.5">
-            <div className="text-[10px] text-dim uppercase">Authorized Official</div>
-            <div className="text-[11px] text-txt mt-0.5">
-              {authorizedOfficial}
-              {authorizedOfficialTitle && <span className="text-dim"> — {authorizedOfficialTitle}</span>}
-              {authorizedOfficialPhone && <span className="text-ok ml-1">{authorizedOfficialPhone}</span>}
+        {/* Expanded section */}
+        {npiExpanded && (
+          <div className="px-3 pb-3 border-t border-border pt-2">
+            {sex && sex !== "--" && (
+              <div className="text-[11px] text-dim mb-1">Gender: {sex === "M" ? "Male" : sex === "F" ? "Female" : sex}</div>
+            )}
+
+            <Field label="Organization Name" value={orgName} />
+
+            {authorizedOfficial && (
+              <div className="mt-1.5">
+                <div className="text-[10px] text-dim uppercase">Authorized Official</div>
+                <div className="text-[11px] text-txt mt-0.5">
+                  {authorizedOfficial}
+                  {authorizedOfficialTitle && <span className="text-dim"> — {authorizedOfficialTitle}</span>}
+                  {authorizedOfficialPhone && <span className="text-ok ml-1">{authorizedOfficialPhone}</span>}
+                </div>
+              </div>
+            )}
+
+            <Field label="Taxonomy Code" value={taxonomyCode} />
+
+            {/* Practice location */}
+            {locationLine && (
+              <div className="mt-1.5">
+                <div className="text-[10px] text-dim uppercase">Practice Location</div>
+                <div className="text-[11px] text-txt mt-0.5">{locationLine}</div>
+                {locationCityLine && <div className="text-[11px] text-txt">{locationCityLine}</div>}
+              </div>
+            )}
+
+            {/* Mailing */}
+            {mailingFull && mailingFull !== [locationLine, locationCityLine].join(", ") && (
+              <Field label="Mailing Address" value={mailingFull} />
+            )}
+
+            {hasFax && <Field label="Fax" value={fax} />}
+
+            <Field label="License Info" value={licenseInfo} color="#06b6d4" />
+            <Field label="Other Identifiers" value={otherIdentifiers} />
+
+            <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-dim">
+              {enumerationDate && <span>Enumerated: {enumerationDate}</span>}
+              {npiLastUpdated && <span>Updated: {npiLastUpdated}</span>}
+              {soleProprietor && soleProprietor !== "--" && <span>Sole prop: {soleProprietor}</span>}
             </div>
           </div>
         )}
-
-        {/* Taxonomy */}
-        <Field label="NPPES Taxonomy" value={taxonomy} color="#06b6d4" />
-        <Field label="Taxonomy Code" value={taxonomyCode} />
-
-        {/* Practice location */}
-        {locationLine && (
-          <div className="mt-2">
-            <div className="text-[10px] text-dim uppercase">Practice Location</div>
-            <div className="text-[11px] text-txt mt-0.5">{locationLine}</div>
-            {locationCityLine && <div className="text-[11px] text-txt">{locationCityLine}</div>}
-          </div>
-        )}
-
-        {/* Mailing */}
-        {mailingLine && mailingLine !== locationLine && (
-          <div className="mt-1.5">
-            <div className="text-[10px] text-dim uppercase">Mailing Address</div>
-            <div className="text-[11px] text-txt mt-0.5">{mailingLine}</div>
-          </div>
-        )}
-
-        {/* Phone / Fax */}
-        {(hasPhone || hasFax) && (
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {hasPhone && (
-              <div>
-                <div className="text-[10px] text-dim uppercase">Phone</div>
-                <div className="text-xs text-ok font-semibold mt-0.5">{phone}</div>
-              </div>
-            )}
-            {hasFax && (
-              <div>
-                <div className="text-[10px] text-dim uppercase">Fax</div>
-                <div className="text-xs text-txt mt-0.5">{fax}</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* License */}
-        <Field label="License Info" value={licenseInfo} />
-
-        {/* Other identifiers */}
-        <Field label="Other Identifiers" value={otherIdentifiers} />
-
-        {/* NPI metadata */}
-        <div className="mt-2 flex gap-4 text-[10px] text-dim">
-          {enumerationDate && <span>Enumerated: {enumerationDate}</span>}
-          {npiLastUpdated && <span>Updated: {npiLastUpdated}</span>}
-          {soleProprietor && soleProprietor !== "--" && <span>Sole prop: {soleProprietor}</span>}
-        </div>
       </div>
 
       {/* Buckets */}
@@ -230,7 +237,7 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
         )}
       </div>
 
-      {/* Metrics grid */}
+      {/* Metrics */}
       <div className="grid grid-cols-2 gap-2 mb-4">
         {[
           { label: "Revenue Proxy", value: `$${p.revenue_proxy.toLocaleString()}`, color: "#22c55e" },
