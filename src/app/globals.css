@@ -1,31 +1,38 @@
 @import "tailwindcss";
 
-:root {
-  --bg: #0a0a0f;
-  --surface: #12121a;
-  --surface2: #1a1a28;
-  --border: #2a2a3d;
-  --text: #e0e0ee;
-  --text-dim: #8888aa;
-  --accent: #6366f1;
-  --accent-dim: #4f46e5;
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --red: #ef4444;
-  --cyan: #06b6d4;
+@theme inline {
+  --color-bg: #0a0a0f;
+  --color-surface: #12121a;
+  --color-surface2: #1a1a28;
+  --color-border: #2a2a3d;
+  --color-txt: #e0e0ee;
+  --color-dim: #8888aa;
+  --color-accent: #6366f1;
+  --color-accent-dim: #4f46e5;
+  --color-ok: #22c55e;
+  --color-warn: #f59e0b;
+  --color-err: #ef4444;
+  --color-info: #06b6d4;
+  --color-purple: #c084fc;
+  --color-indigo-light: #818cf8;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
-  background: var(--bg);
-  color: var(--text);
+  background: #0a0a0f;
+  color: #e0e0ee;
   font-size: 13px;
   line-height: 1.5;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+::-webkit-scrollbar-track { background: #0a0a0f; }
+::-webkit-scrollbar-thumb { background: #2a2a3d; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #8888aa; }
+
+/* Tooltip */
+.tip-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: rgba(99,102,241,0.2); color: #6366f1; font-size: 9px; font-weight: 700; margin-left: 4px; cursor: help; }
+.tip-wrap .tip-body { display: none; position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #1a1a28; border: 1px solid #6366f1; border-radius: 6px; padding: 10px 12px; width: 260px; font-size: 11px; font-weight: 400; line-height: 1.5; color: #e0e0ee; text-transform: none; letter-spacing: 0; white-space: normal; z-index: 50; box-shadow: 0 4px 20px rgba(0,0,0,0.5); pointer-events: none; }
+.tip-wrap:hover .tip-body { display: block; }

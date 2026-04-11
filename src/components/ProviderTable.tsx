@@ -2,26 +2,12 @@
 
 import type { Provider } from "@/lib/types";
 
-const GROUP_TAGS: Record<string, { label: string; cls: string }> = {
-  ASSESSMENT_CORE: { label: "ASSESS", cls: "bg-[rgba(99,102,241,0.2)] text-[#818cf8]" },
-  TEST_ADMIN: { label: "ADMIN", cls: "bg-[rgba(6,182,212,0.2)] text-[#22d3ee]" },
-  NEURO_DEV: { label: "NEURO", cls: "bg-[rgba(168,85,247,0.2)] text-[#c084fc]" },
-  INTAKE_NOISE: { label: "NOISE", cls: "bg-[rgba(239,68,68,0.15)] text-[#f87171]" },
+const GROUP_TAGS: Record<string, { label: string; bg: string; text: string }> = {
+  ASSESSMENT_CORE: { label: "ASSESS", bg: "rgba(99,102,241,0.2)", text: "#818cf8" },
+  TEST_ADMIN: { label: "ADMIN", bg: "rgba(6,182,212,0.2)", text: "#22d3ee" },
+  NEURO_DEV: { label: "NEURO", bg: "rgba(168,85,247,0.2)", text: "#c084fc" },
+  INTAKE_NOISE: { label: "NOISE", bg: "rgba(239,68,68,0.15)", text: "#f87171" },
 };
-
-interface Props {
-  providers: Provider[];
-  selected: Set<string>;
-  customTags: Record<string, string[]>;
-  maxRevenue: number;
-  onToggleSelect: (npi: string) => void;
-  onSelectAll: () => void;
-  onClickNpi: (npi: string) => void;
-  allPageSelected: boolean;
-}
-
-const TH = "bg-[var(--surface2)] px-2.5 py-2 text-left text-[10px] uppercase tracking-wider text-[var(--text-dim)] border-b border-[var(--border)] whitespace-nowrap sticky top-0 z-5";
-const TD = "px-2.5 py-1.5 border-b border-[var(--border)] text-xs whitespace-nowrap overflow-hidden text-ellipsis";
 
 const TOOLTIPS: Record<string, string> = {
   npi: "National Provider Identifier — unique 10-digit ID. Use this to enrich with NPPES contact data.",
@@ -38,84 +24,98 @@ const TOOLTIPS: Record<string, string> = {
 
 function Tip({ id }: { id: string }) {
   return (
-    <span className="relative inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-[rgba(99,102,241,0.2)] text-[var(--accent)] text-[9px] font-bold ml-1 cursor-help group">
+    <span className="tip-wrap">
       ?
-      <span className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 bg-[var(--surface2)] border border-[var(--accent)] rounded-md px-3 py-2.5 text-[11px] font-normal normal-case tracking-normal text-[var(--text)] whitespace-normal z-50 shadow-lg pointer-events-none leading-relaxed">
-        {TOOLTIPS[id]}
-      </span>
+      <span className="tip-body">{TOOLTIPS[id]}</span>
     </span>
   );
+}
+
+interface Props {
+  providers: Provider[];
+  selected: Set<string>;
+  customTags: Record<string, string[]>;
+  maxRevenue: number;
+  onToggleSelect: (npi: string) => void;
+  onSelectAll: () => void;
+  onClickNpi: (npi: string) => void;
+  allPageSelected: boolean;
 }
 
 export default function ProviderTable({ providers, selected, customTags, maxRevenue, onToggleSelect, onSelectAll, onClickNpi, allPageSelected }: Props) {
   return (
     <div className="flex-1 overflow-auto">
-      <table className="w-full border-collapse">
+      <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
         <thead>
           <tr>
-            <th className={`${TH} w-8`}>
-              <input type="checkbox" checked={allPageSelected} onChange={onSelectAll} className="accent-[var(--accent)]" />
+            <th className="bg-surface2 px-2.5 py-2 text-left text-[10px] uppercase tracking-wider text-dim border-b border-border whitespace-nowrap sticky top-0 z-10 w-8">
+              <input type="checkbox" checked={allPageSelected} onChange={onSelectAll} className="accent-accent" />
             </th>
-            <th className={`${TH} w-24`}>NPI<Tip id="npi" /></th>
-            <th className={`${TH} w-44`}>Provider<Tip id="provider" /></th>
-            <th className={`${TH} w-10`}>ST<Tip id="st" /></th>
-            <th className={`${TH} w-24`}>City</th>
-            <th className={`${TH} w-28`}>Type<Tip id="type" /></th>
-            <th className={`${TH} w-28 text-right`}>Revenue $<Tip id="revenue" /></th>
-            <th className={`${TH} w-20 text-right`}>Assess<Tip id="assess" /></th>
-            <th className={`${TH} w-20 text-right`}>Admin<Tip id="admin" /></th>
-            <th className={`${TH} w-16 text-right`}>Ratio<Tip id="ratio" /></th>
-            <th className={`${TH} w-16 text-right`}>Complex<Tip id="complex" /></th>
-            <th className={`${TH} w-36`}>Groups<Tip id="groups" /></th>
-            <th className={`${TH} w-32`}>Tags</th>
+            {[
+              { id: "npi", label: "NPI", w: "w-24" },
+              { id: "provider", label: "Provider", w: "w-44" },
+              { id: "st", label: "ST", w: "w-12" },
+              { id: "", label: "City", w: "w-24" },
+              { id: "type", label: "Type", w: "w-28" },
+              { id: "revenue", label: "Revenue $", w: "w-32", right: true },
+              { id: "assess", label: "Assess", w: "w-20", right: true },
+              { id: "admin", label: "Admin", w: "w-20", right: true },
+              { id: "ratio", label: "Ratio", w: "w-16", right: true },
+              { id: "complex", label: "Complex", w: "w-16", right: true },
+              { id: "groups", label: "Groups", w: "w-36" },
+              { id: "", label: "Tags", w: "w-32" },
+            ].map((col, i) => (
+              <th key={i} className={`bg-surface2 px-2.5 py-2 text-[10px] uppercase tracking-wider text-dim border-b border-border whitespace-nowrap sticky top-0 z-10 ${col.w} ${col.right ? "text-right" : "text-left"}`}>
+                {col.label}
+                {col.id && <Tip id={col.id} />}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {providers.map((p) => {
             const isSelected = selected.has(p.npi);
-            const revColor = p.revenue_proxy > 50000 ? "text-[var(--green)] font-semibold" : p.revenue_proxy > 10000 ? "text-[var(--amber)]" : "text-[var(--text-dim)]";
             const barW = Math.min(100, (p.revenue_proxy / maxRevenue) * 100);
-            const barColor = p.revenue_proxy > 50000 ? "var(--green)" : p.revenue_proxy > 10000 ? "var(--amber)" : "var(--text-dim)";
             const groups = new Set(Object.values(p.codes).map((c) => c.group));
             const tags = customTags[p.npi] || [];
 
             return (
-              <tr key={p.npi} className={`hover:bg-[rgba(99,102,241,0.05)] ${isSelected ? "bg-[rgba(99,102,241,0.12)]" : ""}`}>
-                <td className={TD}>
-                  <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(p.npi)} className="accent-[var(--accent)]" />
+              <tr key={p.npi} className={isSelected ? "bg-accent/10" : "hover:bg-accent/5"}>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs">
+                  <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(p.npi)} className="accent-accent" />
                 </td>
-                <td className={TD}>
-                  <button onClick={() => onClickNpi(p.npi)} className="text-[var(--accent)] hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit text-inherit">
+                <td className="px-2.5 py-1.5 border-b border-border text-xs">
+                  <button onClick={() => onClickNpi(p.npi)} className="text-accent hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit text-xs">
                     {p.npi}
                   </button>
                 </td>
-                <td className={`${TD} max-w-44`} title={p.name}>{p.name}</td>
-                <td className={TD}>{p.state}</td>
-                <td className={`${TD} max-w-24`} title={p.city}>{p.city}</td>
-                <td className={`${TD} max-w-28`} title={p.provider_type}>{p.provider_type}</td>
-                <td className={`${TD} text-right ${revColor}`}>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-44" title={p.name}>{p.name}</td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs">{p.state}</td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-24" title={p.city}>{p.city}</td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-28" title={p.provider_type}>{p.provider_type}</td>
+                <td className={`px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums font-semibold ${p.revenue_proxy > 50000 ? "text-ok" : p.revenue_proxy > 10000 ? "text-warn" : "text-dim"}`}>
                   ${p.revenue_proxy.toLocaleString()}
-                  <div className="inline-block w-14 h-1.5 bg-[var(--bg)] rounded-full overflow-hidden ml-1 align-middle">
-                    <div className="h-full rounded-full" style={{ width: `${barW}%`, background: barColor }} />
-                  </div>
+                  <span className="inline-block w-14 h-1.5 bg-bg rounded-full overflow-hidden ml-1 align-middle">
+                    <span className="block h-full rounded-full" style={{ width: `${barW}%`, background: p.revenue_proxy > 50000 ? "#22c55e" : p.revenue_proxy > 10000 ? "#f59e0b" : "#8888aa" }} />
+                  </span>
                 </td>
-                <td className={`${TD} text-right tabular-nums`}>{p.assessment_units.toLocaleString()}</td>
-                <td className={`${TD} text-right tabular-nums`}>{p.admin_units.toLocaleString()}</td>
-                <td className={`${TD} text-right tabular-nums`}>{(p.assessment_ratio * 100).toFixed(1)}%</td>
-                <td className={`${TD} text-right tabular-nums`}>{(p.complexity_score * 100).toFixed(1)}%</td>
-                <td className={TD}>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums">{p.assessment_units.toLocaleString()}</td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums">{p.admin_units.toLocaleString()}</td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums">{(p.assessment_ratio * 100).toFixed(1)}%</td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums">{(p.complexity_score * 100).toFixed(1)}%</td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs">
                   {Array.from(groups).map((g) => {
                     const t = GROUP_TAGS[g];
                     return t ? (
-                      <span key={g} className={`inline-block px-1.5 py-0 rounded text-[10px] font-semibold mr-0.5 ${t.cls}`}>
+                      <span key={g} className="inline-block px-1.5 rounded text-[10px] font-semibold mr-0.5" style={{ background: t.bg, color: t.text }}>
                         {t.label}
                       </span>
                     ) : null;
                   })}
                 </td>
-                <td className={TD}>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs">
                   {tags.map((t) => (
-                    <span key={t} className="inline-block px-1.5 py-0 rounded text-[10px] font-semibold bg-[rgba(99,102,241,0.2)] text-[#818cf8] mr-0.5">
+                    <span key={t} className="inline-block px-1.5 rounded text-[10px] font-semibold bg-accent/20 text-indigo-light mr-0.5">
                       {t}
                     </span>
                   ))}
