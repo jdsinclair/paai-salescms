@@ -11,12 +11,11 @@ const GROUP_STYLES: Record<string, { bg: string; text: string }> = {
 
 interface Props {
   provider: Provider;
-  customTags: string[];
   onClose: () => void;
   onRemoveTag: (tag: string) => void;
 }
 
-export default function DetailPanel({ provider: p, customTags, onClose, onRemoveTag }: Props) {
+export default function DetailPanel({ provider: p, onClose, onRemoveTag }: Props) {
   const buckets: { label: string; bg: string; text: string; border: string }[] = [];
   if (p.assessment_units >= 100 && p.assessment_ratio >= 0.4 && p.complexity_score >= 0.25)
     buckets.push({ label: "TOP 5%", bg: "rgba(34,197,94,0.2)", text: "#4ade80", border: "rgba(34,197,94,0.3)" });
@@ -25,7 +24,8 @@ export default function DetailPanel({ provider: p, customTags, onClose, onRemove
   if (p.admin_units >= 100 && p.assessment_ratio < 0.3)
     buckets.push({ label: "OPPORTUNITY", bg: "rgba(6,182,212,0.2)", text: "#22d3ee", border: "rgba(6,182,212,0.3)" });
 
-  const sortedCodes = Object.entries(p.codes).sort((a, b) => b[1].revenue - a[1].revenue);
+  const sortedCodes = Object.entries(p.codes || {}).sort((a, b) => b[1].revenue - a[1].revenue);
+  const tags = p.tags || [];
 
   return (
     <div className="w-96 min-w-96 bg-surface border-l border-border overflow-y-auto p-4">
@@ -38,7 +38,6 @@ export default function DetailPanel({ provider: p, customTags, onClose, onRemove
         NPI: {p.npi} &middot; {p.entity_type === "O" ? "Organization" : "Individual"} &middot; {p.credentials || "—"}
       </div>
 
-      {/* Buckets */}
       <div className="mb-3 flex gap-1 flex-wrap">
         {buckets.length > 0 ? buckets.map((b) => (
           <span key={b.label} className="px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: b.bg, color: b.text, border: `1px solid ${b.border}` }}>{b.label}</span>
@@ -47,10 +46,18 @@ export default function DetailPanel({ provider: p, customTags, onClose, onRemove
         )}
       </div>
 
+      {/* CRM Status */}
+      {p.crm_status && (
+        <div className="mb-3 text-xs">
+          <span className="text-dim">Status: </span>
+          <span className="font-semibold text-accent">{p.crm_status}</span>
+        </div>
+      )}
+
       {/* Tags */}
       <div className="mb-4 text-xs">
         <span className="text-dim">Tags: </span>
-        {customTags.length > 0 ? customTags.map((t) => (
+        {tags.length > 0 ? tags.map((t) => (
           <span key={t} onClick={() => onRemoveTag(t)} className="inline-block px-1.5 rounded text-[10px] font-semibold bg-accent/20 text-indigo-light mr-1 cursor-pointer hover:bg-accent/35" title="Click to remove">
             {t} x
           </span>
@@ -76,20 +83,26 @@ export default function DetailPanel({ provider: p, customTags, onClose, onRemove
         ))}
       </div>
 
+      {/* Contact info if enriched */}
+      {(p.phone || p.email) && (
+        <div className="mb-4 bg-bg border border-border rounded p-2">
+          <div className="text-[10px] text-dim uppercase mb-1">Contact</div>
+          {p.phone && <div className="text-xs text-txt">{p.phone}</div>}
+          {p.email && <div className="text-xs text-accent">{p.email}</div>}
+        </div>
+      )}
+
       <div className="text-[11px] text-dim mb-4">
         {p.city}, {p.state} {p.zip} &middot; {p.provider_type}
       </div>
 
-      {/* Code Breakdown */}
       <h3 className="text-xs font-semibold mb-2 text-txt">CPT Code Breakdown</h3>
       {sortedCodes.map(([code, data]) => {
         const gs = GROUP_STYLES[data.group];
         return (
           <div key={code} className="flex justify-between items-center py-1 border-b border-border text-xs">
             <span className="font-semibold text-txt">{code}</span>
-            <span className="px-1.5 rounded text-[10px] font-semibold" style={gs ? { background: gs.bg, color: gs.text } : undefined}>
-              {data.group}
-            </span>
+            <span className="px-1.5 rounded text-[10px] font-semibold" style={gs ? { background: gs.bg, color: gs.text } : undefined}>{data.group}</span>
             <span className="text-dim">{data.units.toLocaleString()} units</span>
             <span className="text-ok">${Math.round(data.revenue).toLocaleString()}</span>
           </div>

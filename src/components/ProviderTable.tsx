@@ -34,7 +34,6 @@ function Tip({ id }: { id: string }) {
 interface Props {
   providers: Provider[];
   selected: Set<string>;
-  customTags: Record<string, string[]>;
   maxRevenue: number;
   onToggleSelect: (npi: string) => void;
   onSelectAll: () => void;
@@ -42,7 +41,7 @@ interface Props {
   allPageSelected: boolean;
 }
 
-export default function ProviderTable({ providers, selected, customTags, maxRevenue, onToggleSelect, onSelectAll, onClickNpi, allPageSelected }: Props) {
+export default function ProviderTable({ providers, selected, maxRevenue, onToggleSelect, onSelectAll, onClickNpi, allPageSelected }: Props) {
   return (
     <div className="flex-1 overflow-auto">
       <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
@@ -76,8 +75,8 @@ export default function ProviderTable({ providers, selected, customTags, maxReve
           {providers.map((p) => {
             const isSelected = selected.has(p.npi);
             const barW = Math.min(100, (p.revenue_proxy / maxRevenue) * 100);
-            const groups = new Set(Object.values(p.codes).map((c) => c.group));
-            const tags = customTags[p.npi] || [];
+            const groups = new Set(Object.values(p.codes || {}).map((c) => c.group));
+            const tags = p.tags || [];
 
             return (
               <tr key={p.npi} className={isSelected ? "bg-accent/10" : "hover:bg-accent/5"}>
@@ -106,18 +105,12 @@ export default function ProviderTable({ providers, selected, customTags, maxReve
                 <td className="px-2.5 py-1.5 border-b border-border text-xs">
                   {Array.from(groups).map((g) => {
                     const t = GROUP_TAGS[g];
-                    return t ? (
-                      <span key={g} className="inline-block px-1.5 rounded text-[10px] font-semibold mr-0.5" style={{ background: t.bg, color: t.text }}>
-                        {t.label}
-                      </span>
-                    ) : null;
+                    return t ? <span key={g} className="inline-block px-1.5 rounded text-[10px] font-semibold mr-0.5" style={{ background: t.bg, color: t.text }}>{t.label}</span> : null;
                   })}
                 </td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs">
                   {tags.map((t) => (
-                    <span key={t} className="inline-block px-1.5 rounded text-[10px] font-semibold bg-accent/20 text-indigo-light mr-0.5">
-                      {t}
-                    </span>
+                    <span key={t} className="inline-block px-1.5 rounded text-[10px] font-semibold bg-accent/20 text-indigo-light mr-0.5">{t}</span>
                   ))}
                 </td>
               </tr>

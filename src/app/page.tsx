@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Provider, Filters } from "@/lib/types";
+import type { ProvidersResponse, TagData, SegmentData } from "@/lib/api";
+import { fetchProviders, fetchStates, fetchTags, fetchSegments, applyTagToProviders, removeTagFromProvider, saveSegment as saveSegmentApi, deleteSegmentApi, fetchAllForExport } from "@/lib/api";
 import Sidebar from "@/components/Sidebar";
 import ProviderTable from "@/components/ProviderTable";
 import DetailPanel from "@/components/DetailPanel";
@@ -9,12 +11,6 @@ import TagModal from "@/components/TagModal";
 import SegmentModal from "@/components/SegmentModal";
 import SegmentsWorkspace from "@/components/SegmentsWorkspace";
 import Toast from "@/components/Toast";
-
-interface DataPayload {
-  providers: Provider[];
-  states: string[];
-  total: number;
-}
 
 const DEFAULT_FILTERS: Filters = {
   states: [],
@@ -31,18 +27,10 @@ const DEFAULT_FILTERS: Filters = {
   tagFilter: [],
 };
 
-interface Segment {
-  id: string;
-  name: string;
-  filters: Filters;
-  count: number;
-  createdAt: string;
-}
-
 export default function Home() {
-  const [data, setData] = useState<Provider[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [tab, setTab] = useState<"providers" | "segments">("providers");
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
   const [sort, setSort] = useState<{ field: string; dir: "asc" | "desc" }>({ field: "revenue_proxy", dir: "desc" });
@@ -50,73 +38,56 @@ export default function Home() {
   const [pageSize, setPageSize] = useState(100);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailNpi, setDetailNpi] = useState<string | null>(null);
-  const [customTags, setCustomTags] = useState<Record<string, string[]>>({});
-  const [savedSegments, setSavedSegments] = useState<Segment[]>([]);
+
+  // API data
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState({ totalRevenue: 0, totalAssess: 0, avgRatio: 0 });
+  const [maxRevenue, setMaxRevenue] = useState(1);
+  const [dbTags, setDbTags] = useState<TagData[]>([]);
+  const [savedSegments, setSavedSegments] = useState<SegmentData[]>([]);
+
   const [showTagModal, setShowTagModal] = useState(false);
   const [showSegmentModal, setShowSegmentModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  const fetchRef = useRef(0); // debounce token
+
+  // Initial load
   useEffect(() => {
-    fetch("/providers_data.json")
-      .then((r) => r.json())
-      .then((d: DataPayload) => { setData(d.providers); setStates(d.states); setLoading(false); });
-    try {
-      const t = localStorage.getItem("paai_tags");
-      if (t) setCustomTags(JSON.parse(t));
-      const s = localStorage.getItem("paai_segments");
-      if (s) setSavedSegments(JSON.parse(s));
-    } catch {}
+    Promise.all([fetchStates(), fetchTags(), fetchSegments()]).then(([s, t, seg]) => {
+      setStates(s);
+      setDbTags(t);
+      setSavedSegments(seg);
+      setLoading(false);
+    });
   }, []);
 
-  useEffect(() => { localStorage.setItem("paai_tags", JSON.stringify(customTags)); }, [customTags]);
-  useEffect(() => { localStorage.setItem("paai_segments", JSON.stringify(savedSegments)); }, [savedSegments]);
+  // Fetch providers when filters/sort/page change
+  const loadProviders = useCallback(async () => {
+    const token = ++fetchRef.current;
+    setFetching(true);
+    try {
+      const data = await fetchProviders(filters, sort, page, pageSize);
+      if (fetchRef.current !== token) return; // stale
+      setProviders(data.providers);
+      setTotal(data.total);
+      setStats(data.stats);
+      setMaxRevenue(data.maxRevenue);
+    } catch (e) {
+      console.error("Fetch error:", e);
+    } finally {
+      if (fetchRef.current === token) setFetching(false);
+    }
+  }, [filters, sort, page, pageSize]);
 
-  const filtered = useMemo(() => {
-    let result = data.filter((p) => {
-      if (filters.states.length > 0 && !filters.states.includes(p.state)) return false;
-      if (p.assessment_units < filters.minAssessUnits) return false;
-      if (p.assessment_ratio < filters.minAssessRatio) return false;
-      if (p.admin_units < filters.minAdminUnits) return false;
-      if (p.revenue_proxy < filters.minRevenue) return false;
-      if (p.complexity_score < filters.minComplexity) return false;
-      if (filters.neuroOnly && !p.neuro_flag) return false;
-      if (filters.orgOnly && p.entity_type !== "O") return false;
-      if (filters.indivOnly && p.entity_type !== "I") return false;
-      if (filters.preset === "underserved" && p.assessment_ratio > 0.3) return false;
-      if (filters.preset === "adhd" && p.neuro_units > p.assessment_units * 0.3) return false;
-      if (filters.tagFilter.length > 0) {
-        const pTags = customTags[p.npi] || [];
-        if (!filters.tagFilter.some((t) => pTags.includes(t))) return false;
-      }
-      if (filters.search) {
-        const hay = `${p.npi} ${p.name} ${p.city} ${p.state} ${p.provider_type}`.toLowerCase();
-        if (!hay.includes(filters.search.toLowerCase())) return false;
-      }
-      return true;
-    });
-    const dir = sort.dir === "desc" ? -1 : 1;
-    const field = sort.field as keyof Provider;
-    result.sort((a, b) => ((a[field] as number) || 0) - ((b[field] as number) || 0)) ;
-    if (sort.dir === "desc") result.reverse();
-    return result;
-  }, [data, filters, sort, customTags]);
+  useEffect(() => {
+    if (!loading) loadProviders();
+  }, [loadProviders, loading]);
 
-  const stats = useMemo(() => {
-    const totalRev = filtered.reduce((s, p) => s + p.revenue_proxy, 0);
-    const totalAssess = filtered.reduce((s, p) => s + p.assessment_units, 0);
-    const avgRatio = filtered.length > 0 ? filtered.reduce((s, p) => s + p.assessment_ratio, 0) / filtered.length : 0;
-    return { count: filtered.length, revenue: totalRev, assessUnits: totalAssess, avgRatio };
-  }, [filtered]);
-
-  const maxPages = Math.ceil(filtered.length / pageSize);
-  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const maxRevenue = useMemo(() => Math.max(...filtered.slice(0, 200).map((p) => p.revenue_proxy), 1), [filtered]);
-  const detailProvider = useMemo(() => (detailNpi ? data.find((p) => p.npi === detailNpi) : null), [detailNpi, data]);
-  const allTagNames = useMemo(() => {
-    const s = new Set<string>();
-    Object.values(customTags).forEach((tags) => tags.forEach((t) => s.add(t)));
-    return Array.from(s);
-  }, [customTags]);
+  const maxPages = Math.ceil(total / pageSize);
+  const allTagNames = dbTags.map((t) => t.name);
+  const detailProvider = detailNpi ? providers.find((p) => p.npi === detailNpi) : null;
 
   function applyPreset(preset: string) {
     const f = { ...DEFAULT_FILTERS, preset };
@@ -138,48 +109,75 @@ export default function Home() {
   function selectAllPage() {
     setSelected((prev) => {
       const next = new Set(prev);
-      const allSelected = pageItems.every((p) => next.has(p.npi));
-      pageItems.forEach((p) => { if (allSelected) next.delete(p.npi); else next.add(p.npi); });
+      const allSelected = providers.every((p) => next.has(p.npi));
+      providers.forEach((p) => { if (allSelected) next.delete(p.npi); else next.add(p.npi); });
       return next;
     });
   }
-  function applyTag(tag: string) {
-    setCustomTags((prev) => {
-      const next = { ...prev };
-      selected.forEach((npi) => { if (!next[npi]) next[npi] = []; if (!next[npi].includes(tag)) next[npi] = [...next[npi], tag]; });
-      return next;
-    });
-    setShowTagModal(false);
-    showToastMsg(`Tagged ${selected.size} providers with "${tag}"`);
-  }
-  function removeTag(npi: string, tag: string) {
-    setCustomTags((prev) => { const next = { ...prev }; if (next[npi]) { next[npi] = next[npi].filter((t) => t !== tag); if (next[npi].length === 0) delete next[npi]; } return next; });
-  }
-  function saveSegment(name: string) {
-    const seg: Segment = { id: Date.now().toString(36), name, filters: { ...filters }, count: filtered.length, createdAt: new Date().toISOString() };
-    setSavedSegments((prev) => [...prev, seg]);
-    setShowSegmentModal(false);
-    showToastMsg(`Saved segment "${name}" with ${filtered.length} providers`);
-  }
-  function loadSegment(seg: Segment) { setFilters(seg.filters); setPage(1); }
-  function deleteSegment(id: string) { setSavedSegments((prev) => prev.filter((s) => s.id !== id)); }
 
-  function exportCSV(providers: Provider[], filename: string) {
-    const headers = ["NPI","Name","Credentials","Entity_Type","City","State","Zip","Provider_Type","Revenue_Proxy","Total_Revenue","Assessment_Units","Admin_Units","Addon_Units","Neuro_Units","Total_Units","Assessment_Ratio","Complexity_Score","Neuro_Flag","Custom_Tags","Codes_Detail"];
-    const rows = providers.map((p) => {
-      const tags = (customTags[p.npi] || []).join(";");
-      const codes = Object.entries(p.codes).map(([c, d]) => `${c}:${d.units}u/$${Math.round(d.revenue)}`).join(";");
+  async function handleApplyTag(tag: string) {
+    const npis = Array.from(selected);
+    await applyTagToProviders(tag, npis);
+    setShowTagModal(false);
+    showToastMsg(`Tagged ${npis.length} providers with "${tag}"`);
+    // Refresh tags and providers
+    const [t] = await Promise.all([fetchTags(), loadProviders()]);
+    setDbTags(t);
+  }
+
+  async function handleRemoveTag(npi: string, tagName: string) {
+    const tag = dbTags.find((t) => t.name === tagName);
+    if (!tag) return;
+    await removeTagFromProvider(tag.id, npi);
+    const t = await fetchTags();
+    setDbTags(t);
+    loadProviders();
+  }
+
+  async function handleSaveSegment(name: string) {
+    await saveSegmentApi(name, filters, total);
+    setShowSegmentModal(false);
+    const seg = await fetchSegments();
+    setSavedSegments(seg);
+    showToastMsg(`Saved segment "${name}" with ${total} providers`);
+  }
+
+  function loadSegment(seg: SegmentData) {
+    setFilters(seg.filters);
+    setPage(1);
+  }
+
+  async function handleDeleteSegment(id: string) {
+    await deleteSegmentApi(id);
+    const seg = await fetchSegments();
+    setSavedSegments(seg);
+  }
+
+  async function exportCSV(mode: "filtered" | "selected") {
+    showToastMsg("Exporting...");
+    let rows: Provider[];
+    if (mode === "selected") {
+      // Fetch selected NPIs from current providers (may span pages, so just use what we have selected)
+      // For a proper export we'd need a dedicated endpoint, but for now use current page data
+      rows = providers.filter((p) => selected.has(p.npi));
+    } else {
+      rows = await fetchAllForExport(filters, sort);
+    }
+    const headers = ["NPI","Name","Credentials","Entity_Type","City","State","Zip","Provider_Type","Revenue_Proxy","Total_Revenue","Assessment_Units","Admin_Units","Addon_Units","Neuro_Units","Total_Units","Assessment_Ratio","Complexity_Score","Neuro_Flag","Tags","Codes_Detail"];
+    const csvRows = rows.map((p) => {
+      const tags = (p.tags || []).join(";");
+      const codes = Object.entries(p.codes || {}).map(([c, d]) => `${c}:${d.units}u/$${Math.round(d.revenue)}`).join(";");
       return [p.npi, `"${p.name}"`, p.credentials, p.entity_type, `"${p.city}"`, p.state, p.zip, `"${p.provider_type}"`, p.revenue_proxy, p.total_revenue, p.assessment_units, p.admin_units, p.addon_units, p.neuro_units, p.total_units, p.assessment_ratio, p.complexity_score, p.neuro_flag, tags, `"${codes}"`].join(",");
     });
-    const csv = [headers.join(","), ...rows].join("\n");
+    const csv = [headers.join(","), ...csvRows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `paai_${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `paai_${mode}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showToastMsg(`Exported ${providers.length} providers`);
+    showToastMsg(`Exported ${rows.length} providers`);
   }
 
   function showToastMsg(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000); }
@@ -188,14 +186,13 @@ export default function Home() {
     return (
       <div className="flex items-center justify-center h-screen flex-col gap-4 bg-bg">
         <div className="w-8 h-8 border-[3px] border-border border-t-accent rounded-full animate-spin" />
-        <div className="text-dim">Loading provider data...</div>
+        <div className="text-dim">Connecting to database...</div>
       </div>
     );
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
-      {/* Sidebar - only on providers tab */}
       {tab === "providers" && (
         <Sidebar
           states={states}
@@ -205,32 +202,22 @@ export default function Home() {
           allTagNames={allTagNames}
           savedSegments={savedSegments}
           loadSegment={loadSegment}
-          deleteSegment={deleteSegment}
+          deleteSegment={handleDeleteSegment}
         />
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Tab bar */}
         <div className="flex items-center gap-0 border-b border-border bg-surface">
-          <button
-            onClick={() => setTab("providers")}
-            className={`px-5 py-2.5 text-xs font-semibold cursor-pointer border-b-2 transition-all ${
-              tab === "providers" ? "border-accent text-accent bg-accent/5" : "border-transparent text-dim hover:text-txt"
-            }`}
-          >
+          <button onClick={() => setTab("providers")} className={`px-5 py-2.5 text-xs font-semibold cursor-pointer border-b-2 transition-all ${tab === "providers" ? "border-accent text-accent bg-accent/5" : "border-transparent text-dim hover:text-txt"}`}>
             Providers
           </button>
-          <button
-            onClick={() => setTab("segments")}
-            className={`px-5 py-2.5 text-xs font-semibold cursor-pointer border-b-2 transition-all ${
-              tab === "segments" ? "border-accent text-accent bg-accent/5" : "border-transparent text-dim hover:text-txt"
-            }`}
-          >
+          <button onClick={() => setTab("segments")} className={`px-5 py-2.5 text-xs font-semibold cursor-pointer border-b-2 transition-all ${tab === "segments" ? "border-accent text-accent bg-accent/5" : "border-transparent text-dim hover:text-txt"}`}>
             Segments & Pipeline
-            {savedSegments.length > 0 && (
-              <span className="ml-1.5 bg-accent/20 text-accent text-[10px] px-1.5 py-0.5 rounded-full">{savedSegments.length}</span>
-            )}
+            {savedSegments.length > 0 && <span className="ml-1.5 bg-accent/20 text-accent text-[10px] px-1.5 py-0.5 rounded-full">{savedSegments.length}</span>}
           </button>
+          {/* Loading indicator */}
+          {fetching && <div className="ml-auto mr-4 w-4 h-4 border-2 border-border border-t-accent rounded-full animate-spin" />}
         </div>
 
         {tab === "providers" ? (
@@ -238,14 +225,14 @@ export default function Home() {
             {/* Top bar */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-surface gap-3 flex-wrap">
               <div className="flex gap-5 text-xs">
-                <div><span className="font-bold text-accent">{stats.count.toLocaleString()}</span>{" "}<span className="text-dim text-[10px]">providers</span></div>
-                <div><span className="font-bold text-accent">${Math.round(stats.revenue).toLocaleString()}</span>{" "}<span className="text-dim text-[10px]">total revenue</span></div>
-                <div><span className="font-bold text-accent">{stats.assessUnits.toLocaleString()}</span>{" "}<span className="text-dim text-[10px]">assess units</span></div>
+                <div><span className="font-bold text-accent">{total.toLocaleString()}</span>{" "}<span className="text-dim text-[10px]">providers</span></div>
+                <div><span className="font-bold text-accent">${Math.round(stats.totalRevenue).toLocaleString()}</span>{" "}<span className="text-dim text-[10px]">total revenue</span></div>
+                <div><span className="font-bold text-accent">{Math.round(stats.totalAssess).toLocaleString()}</span>{" "}<span className="text-dim text-[10px]">assess units</span></div>
                 <div><span className="font-bold text-accent">{stats.avgRatio.toFixed(3)}</span>{" "}<span className="text-dim text-[10px]">avg ratio</span></div>
               </div>
               <div className="flex gap-1.5">
-                <button onClick={() => exportCSV(filtered, "filtered")} className="px-3 py-1.5 rounded border border-border bg-surface2 text-txt text-[11px] hover:bg-border cursor-pointer">Export Filtered CSV</button>
-                <button onClick={() => exportCSV(data.filter((p) => selected.has(p.npi)), "selected")} className="px-3 py-1.5 rounded border border-border bg-surface2 text-txt text-[11px] hover:bg-border cursor-pointer">Export Selected CSV</button>
+                <button onClick={() => exportCSV("filtered")} className="px-3 py-1.5 rounded border border-border bg-surface2 text-txt text-[11px] hover:bg-border cursor-pointer">Export Filtered CSV</button>
+                <button onClick={() => exportCSV("selected")} className="px-3 py-1.5 rounded border border-border bg-surface2 text-txt text-[11px] hover:bg-border cursor-pointer">Export Selected CSV</button>
                 <button onClick={() => setShowSegmentModal(true)} className="px-3 py-1.5 rounded border border-accent bg-accent text-white text-[11px] hover:bg-accent-dim cursor-pointer">Save Segment</button>
               </div>
             </div>
@@ -277,12 +264,9 @@ export default function Home() {
                   onClick={() => {
                     if (sort.field === s.field) setSort({ field: s.field, dir: sort.dir === "desc" ? "asc" : "desc" });
                     else setSort({ field: s.field, dir: "desc" });
+                    setPage(1);
                   }}
-                  className={`px-2 py-0.5 rounded border text-[11px] cursor-pointer ${
-                    sort.field === s.field
-                      ? "text-accent border-accent bg-accent/10"
-                      : "text-dim border-transparent bg-transparent hover:text-txt"
-                  }`}
+                  className={`px-2 py-0.5 rounded border text-[11px] cursor-pointer ${sort.field === s.field ? "text-accent border-accent bg-accent/10" : "text-dim border-transparent bg-transparent hover:text-txt"}`}
                 >
                   {s.label} {sort.field === s.field ? (sort.dir === "desc" ? "▼" : "▲") : ""}
                 </button>
@@ -290,14 +274,13 @@ export default function Home() {
             </div>
 
             <ProviderTable
-              providers={pageItems}
+              providers={providers}
               selected={selected}
-              customTags={customTags}
               maxRevenue={maxRevenue}
               onToggleSelect={toggleSelect}
               onSelectAll={selectAllPage}
               onClickNpi={setDetailNpi}
-              allPageSelected={pageItems.length > 0 && pageItems.every((p) => selected.has(p.npi))}
+              allPageSelected={providers.length > 0 && providers.every((p) => selected.has(p.npi))}
             />
 
             {/* Pagination */}
@@ -316,27 +299,24 @@ export default function Home() {
         ) : (
           <SegmentsWorkspace
             segments={savedSegments}
-            data={data}
-            customTags={customTags}
-            onLoadSegment={loadSegment}
-            onDeleteSegment={deleteSegment}
+            dbTags={dbTags}
+            onLoadSegment={(seg) => { loadSegment(seg); setTab("providers"); }}
+            onDeleteSegment={handleDeleteSegment}
             onSwitchToProviders={() => setTab("providers")}
           />
         )}
       </div>
 
-      {/* Detail Panel */}
       {detailProvider && tab === "providers" && (
         <DetailPanel
           provider={detailProvider}
-          customTags={customTags[detailProvider.npi] || []}
           onClose={() => setDetailNpi(null)}
-          onRemoveTag={(tag) => removeTag(detailProvider.npi, tag)}
+          onRemoveTag={(tag) => handleRemoveTag(detailProvider.npi, tag)}
         />
       )}
 
-      {showTagModal && <TagModal allTagNames={allTagNames} onApply={applyTag} onClose={() => setShowTagModal(false)} />}
-      {showSegmentModal && <SegmentModal count={filtered.length} onSave={saveSegment} onClose={() => setShowSegmentModal(false)} />}
+      {showTagModal && <TagModal allTagNames={allTagNames} onApply={handleApplyTag} onClose={() => setShowTagModal(false)} />}
+      {showSegmentModal && <SegmentModal count={total} onSave={handleSaveSegment} onClose={() => setShowSegmentModal(false)} />}
       {toast && <Toast message={toast} />}
     </div>
   );

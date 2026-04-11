@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { tags, providerTags } from "@/lib/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
-// List all tags
+export const dynamic = "force-dynamic";
+
+// List all tags with provider counts
 export async function GET() {
   const db = getDb();
   if (!db) return NextResponse.json({ error: "DB not connected" }, { status: 500 });
 
-  const allTags = await db.select().from(tags);
+  const allTags = await db
+    .select({
+      id: tags.id,
+      name: tags.name,
+      color: tags.color,
+      count: sql<number>`(SELECT count(*) FROM provider_tags WHERE tag_id = ${tags.id})`,
+    })
+    .from(tags);
+
   return NextResponse.json({ tags: allTags });
 }
 
@@ -24,16 +34,13 @@ export async function POST(req: NextRequest) {
 
   const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-  // Upsert tag
   await db
     .insert(tags)
     .values({ id, name, color: color || "#6366f1" })
     .onConflictDoNothing();
 
-  // Assign to providers if NPIs given
   if (npis && npis.length > 0) {
     const rows = npis.map((npi) => ({ npi, tagId: id }));
-    // Batch insert
     const BATCH = 500;
     for (let i = 0; i < rows.length; i += BATCH) {
       await db.insert(providerTags).values(rows.slice(i, i + BATCH)).onConflictDoNothing();
@@ -43,7 +50,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, tagId: id, assigned: npis?.length || 0 });
 }
 
-// Remove tag from providers or delete tag entirely
+// Remove tag from provider or delete tag entirely
 export async function DELETE(req: NextRequest) {
   const db = getDb();
   if (!db) return NextResponse.json({ error: "DB not connected" }, { status: 500 });
@@ -54,13 +61,10 @@ export async function DELETE(req: NextRequest) {
   if (!tagId) return NextResponse.json({ error: "tagId required" }, { status: 400 });
 
   if (npi) {
-    // Remove tag from specific provider
-    const { and } = await import("drizzle-orm");
     await db
       .delete(providerTags)
       .where(and(eq(providerTags.tagId, tagId), eq(providerTags.npi, npi)));
   } else {
-    // Delete tag entirely
     await db.delete(providerTags).where(eq(providerTags.tagId, tagId));
     await db.delete(tags).where(eq(tags.id, tagId));
   }

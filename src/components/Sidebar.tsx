@@ -2,14 +2,9 @@
 
 import { useState } from "react";
 import type { Filters } from "@/lib/types";
+import type { SegmentData } from "@/lib/api";
 
-interface Segment {
-  id: string;
-  name: string;
-  filters: Filters;
-  count: number;
-  createdAt: string;
-}
+type Segment = SegmentData;
 
 interface Props {
   states: string[];
@@ -190,7 +185,7 @@ export default function Sidebar({ states, filters, setFilters, applyPreset, allT
             <div key={seg.id} className="flex items-center justify-between px-2 py-1.5 border border-border rounded mb-1">
               <div>
                 <div className="text-xs font-semibold text-txt">{seg.name}</div>
-                <div className="text-[10px] text-dim">{seg.count} providers</div>
+                <div className="text-[10px] text-dim">{seg.providerCount} providers</div>
               </div>
               <div className="flex gap-1">
                 <button onClick={() => loadSegment(seg)} className="px-1.5 py-0.5 rounded border border-border bg-surface2 text-[10px] text-txt cursor-pointer hover:bg-border">Load</button>
