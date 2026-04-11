@@ -17,9 +17,19 @@ interface Props {
   onEnriched?: () => void;
 }
 
+function Field({ label, value, color }: { label: string; value?: string | null; color?: string }) {
+  if (!value || value === "NO_PHONE" || value === "NOT_FOUND" || value === "--") return null;
+  return (
+    <div className="mt-1.5">
+      <div className="text-[10px] text-dim uppercase">{label}</div>
+      <div className="text-[11px] mt-0.5" style={color ? { color } : undefined}>{value}</div>
+    </div>
+  );
+}
+
 export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnriched }: Props) {
   const [enriching, setEnriching] = useState(false);
-  const [enrichResult, setEnrichResult] = useState<Record<string, string> | null>(null);
+  const [enrichResult, setEnrichResult] = useState<Record<string, string | null> | null>(null);
 
   const buckets: { label: string; bg: string; text: string; border: string }[] = [];
   if (p.assessment_units >= 100 && p.assessment_ratio >= 0.4 && p.complexity_score >= 0.25)
@@ -54,31 +64,70 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
     }
   }
 
-  // Use enriched data if available (from DB or just-fetched)
-  const firstName = enrichResult?.firstName || p.first_name || "";
-  const lastName = enrichResult?.lastName || p.last_name || "";
-  const phone = enrichResult?.phone || p.phone;
-  const fax = enrichResult?.fax || p.fax;
-  const taxonomy = enrichResult?.taxonomy || p.taxonomy;
-  const address1 = enrichResult?.address1 || p.address1;
+  // Use enriched data from DB or just-fetched
+  const e = enrichResult || {};
+  const firstName = e.firstName ?? p.first_name;
+  const lastName = e.lastName ?? p.last_name;
+  const phone = e.phone ?? p.phone;
+  const fax = e.fax ?? p.fax;
+  const taxonomy = e.taxonomy ?? p.taxonomy;
+  const taxonomyCode = e.taxonomyCode ?? p.taxonomy_code;
+  const address1 = e.address1 ?? p.address1;
+  const address2 = e.address2 ?? p.address2;
+  const locationCity = e.locationCity ?? p.location_city;
+  const locationState = e.locationState ?? p.location_state;
+  const locationZip = e.locationZip ?? p.location_zip;
+  const mailingAddress1 = e.mailingAddress1 ?? p.mailing_address1;
+  const mailingCity = e.mailingCity ?? p.mailing_city;
+  const mailingState = e.mailingState ?? p.mailing_state;
+  const mailingZip = e.mailingZip ?? p.mailing_zip;
+  const sex = e.sex ?? p.sex;
+  const orgName = e.orgName ?? p.org_name;
+  const npiStatus = e.npiStatus ?? p.npi_status;
+  const enumerationType = e.enumerationType ?? p.enumeration_type;
+  const enumerationDate = e.enumerationDate ?? p.enumeration_date;
+  const npiLastUpdated = e.npiLastUpdated ?? p.npi_last_updated;
+  const authorizedOfficial = e.authorizedOfficial ?? p.authorized_official;
+  const authorizedOfficialTitle = e.authorizedOfficialTitle ?? p.authorized_official_title;
+  const authorizedOfficialPhone = e.authorizedOfficialPhone ?? p.authorized_official_phone;
+  const licenseInfo = e.licenseInfo ?? p.license_info;
+  const otherIdentifiers = e.otherIdentifiers ?? p.other_identifiers;
+  const soleProprietor = e.soleProprietor ?? p.sole_proprietor;
+
   const isEnriched = p.enriched || !!enrichResult;
-  const displayPhone = phone && phone !== "NO_PHONE" && phone !== "NOT_FOUND" ? phone : null;
-  const displayFax = fax && fax !== "NO_PHONE" && fax !== "NOT_FOUND" ? fax : null;
+  const hasPhone = phone && phone !== "NO_PHONE" && phone !== "NOT_FOUND";
+  const hasFax = fax && fax !== "NO_PHONE" && fax !== "NOT_FOUND";
+
+  const locationLine = [address1, address2].filter(Boolean).join(", ");
+  const locationCityLine = [locationCity, locationState, locationZip?.slice(0, 5)].filter(Boolean).join(", ");
+  const mailingLine = [mailingAddress1, mailingCity, mailingState, mailingZip?.slice(0, 5)].filter(Boolean).join(", ");
 
   return (
-    <div className="w-96 min-w-96 bg-surface border-l border-border overflow-y-auto p-4">
+    <div className="w-[420px] min-w-[420px] bg-surface border-l border-border overflow-y-auto p-4">
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-sm font-bold text-txt">{p.name}</h2>
         <button onClick={onClose} className="px-2 py-0.5 rounded border border-border bg-surface2 text-[10px] text-txt cursor-pointer hover:bg-border">x</button>
       </div>
 
-      {/* NPI Info */}
       <div className="text-[11px] text-dim mb-1">
-        NPI: {p.npi} &middot; {p.entity_type === "O" ? "Organization" : "Individual"} &middot; {p.credentials || "—"}
+        NPI: {p.npi} &middot; {enumerationType || (p.entity_type === "O" ? "NPI-2" : "NPI-1")} &middot; {p.credentials || "—"}
+        {npiStatus && <span> &middot; Status: <span className={npiStatus === "A" ? "text-ok" : "text-err"}>{npiStatus === "A" ? "Active" : npiStatus}</span></span>}
       </div>
 
-      {/* Name breakdown from NPPES */}
-      <div className="bg-bg border border-border rounded p-2.5 mb-3">
+      {/* NPPES Enrichment Block */}
+      <div className="bg-bg border border-border rounded p-3 mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] text-dim uppercase font-semibold tracking-wider">NPI Registry Data</span>
+          <button
+            onClick={handleEnrich}
+            disabled={enriching}
+            className="px-2 py-0.5 rounded border border-info bg-info/10 text-info text-[10px] cursor-pointer hover:bg-info/20 disabled:opacity-50"
+          >
+            {enriching ? "Fetching..." : isEnriched ? "Retry Enrich" : "Enrich from NPPES"}
+          </button>
+        </div>
+
+        {/* Name */}
         <div className="grid grid-cols-2 gap-2">
           <div>
             <div className="text-[10px] text-dim uppercase">First Name</div>
@@ -89,46 +138,75 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
             <div className="text-xs font-semibold text-txt mt-0.5">{lastName || <span className="text-dim italic">—</span>}</div>
           </div>
         </div>
-        {taxonomy && (
-          <div className="mt-2">
-            <div className="text-[10px] text-dim uppercase">NPPES Taxonomy</div>
-            <div className="text-[11px] text-info mt-0.5">{taxonomy}</div>
+
+        {sex && sex !== "--" && (
+          <div className="mt-1.5 text-[11px] text-dim">Gender: {sex === "M" ? "Male" : sex === "F" ? "Female" : sex}</div>
+        )}
+
+        {/* Org fields */}
+        <Field label="Organization Name" value={orgName} />
+        {authorizedOfficial && (
+          <div className="mt-1.5">
+            <div className="text-[10px] text-dim uppercase">Authorized Official</div>
+            <div className="text-[11px] text-txt mt-0.5">
+              {authorizedOfficial}
+              {authorizedOfficialTitle && <span className="text-dim"> — {authorizedOfficialTitle}</span>}
+              {authorizedOfficialPhone && <span className="text-ok ml-1">{authorizedOfficialPhone}</span>}
+            </div>
           </div>
         )}
-        {address1 && (
+
+        {/* Taxonomy */}
+        <Field label="NPPES Taxonomy" value={taxonomy} color="#06b6d4" />
+        <Field label="Taxonomy Code" value={taxonomyCode} />
+
+        {/* Practice location */}
+        {locationLine && (
           <div className="mt-2">
-            <div className="text-[10px] text-dim uppercase">Practice Address</div>
-            <div className="text-[11px] text-txt mt-0.5">{address1}</div>
+            <div className="text-[10px] text-dim uppercase">Practice Location</div>
+            <div className="text-[11px] text-txt mt-0.5">{locationLine}</div>
+            {locationCityLine && <div className="text-[11px] text-txt">{locationCityLine}</div>}
           </div>
         )}
-        {(displayPhone || displayFax) && (
+
+        {/* Mailing */}
+        {mailingLine && mailingLine !== locationLine && (
+          <div className="mt-1.5">
+            <div className="text-[10px] text-dim uppercase">Mailing Address</div>
+            <div className="text-[11px] text-txt mt-0.5">{mailingLine}</div>
+          </div>
+        )}
+
+        {/* Phone / Fax */}
+        {(hasPhone || hasFax) && (
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {displayPhone && (
+            {hasPhone && (
               <div>
                 <div className="text-[10px] text-dim uppercase">Phone</div>
-                <div className="text-xs text-ok mt-0.5">{displayPhone}</div>
+                <div className="text-xs text-ok font-semibold mt-0.5">{phone}</div>
               </div>
             )}
-            {displayFax && (
+            {hasFax && (
               <div>
                 <div className="text-[10px] text-dim uppercase">Fax</div>
-                <div className="text-xs text-txt mt-0.5">{displayFax}</div>
+                <div className="text-xs text-txt mt-0.5">{fax}</div>
               </div>
             )}
           </div>
         )}
-        {!isEnriched && (
-          <button
-            onClick={handleEnrich}
-            disabled={enriching}
-            className="mt-2 w-full px-3 py-1.5 rounded border border-info bg-info/10 text-info text-[11px] cursor-pointer hover:bg-info/20 disabled:opacity-50"
-          >
-            {enriching ? "Fetching from NPPES..." : "Enrich from NPI Registry"}
-          </button>
-        )}
-        {isEnriched && !firstName && (
-          <div className="mt-1 text-[10px] text-dim">Enriched — no additional name data found</div>
-        )}
+
+        {/* License */}
+        <Field label="License Info" value={licenseInfo} />
+
+        {/* Other identifiers */}
+        <Field label="Other Identifiers" value={otherIdentifiers} />
+
+        {/* NPI metadata */}
+        <div className="mt-2 flex gap-4 text-[10px] text-dim">
+          {enumerationDate && <span>Enumerated: {enumerationDate}</span>}
+          {npiLastUpdated && <span>Updated: {npiLastUpdated}</span>}
+          {soleProprietor && soleProprietor !== "--" && <span>Sole prop: {soleProprietor}</span>}
+        </div>
       </div>
 
       {/* Buckets */}
@@ -139,14 +217,6 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
           <span className="text-[11px] text-dim">No bucket match</span>
         )}
       </div>
-
-      {/* CRM Status */}
-      {p.crm_status && (
-        <div className="mb-3 text-xs">
-          <span className="text-dim">Status: </span>
-          <span className="font-semibold text-accent">{p.crm_status}</span>
-        </div>
-      )}
 
       {/* Tags */}
       <div className="mb-4 text-xs">

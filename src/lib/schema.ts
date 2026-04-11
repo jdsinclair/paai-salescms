@@ -4,7 +4,7 @@ export const providers = pgTable("providers", {
   npi: text("npi").primaryKey(),
   name: text("name").notNull(),
   credentials: text("credentials"),
-  entityType: text("entity_type"), // I or O
+  entityType: text("entity_type"),
   city: text("city"),
   state: text("state"),
   zip: text("zip"),
@@ -21,23 +21,49 @@ export const providers = pgTable("providers", {
   complexityScore: real("complexity_score").default(0),
   neuroFlag: boolean("neuro_flag").default(false),
   // CRM fields
-  crmStatus: text("crm_status").default("new"), // new, contacted, replied, meeting, closed, lost
+  crmStatus: text("crm_status").default("new"),
   crmNotes: text("crm_notes"),
   crmLastContact: timestamp("crm_last_contact"),
   crmNextFollowup: timestamp("crm_next_followup"),
   crmOwner: text("crm_owner"),
-  // Enrichment fields (from NPPES)
+  // NPPES enrichment
   firstName: text("first_name"),
   lastName: text("last_name"),
+  sex: text("sex"),
+  orgName: text("org_name"),
+  soleProprietor: text("sole_proprietor"),
+  // Location address
   address1: text("address1"),
   address2: text("address2"),
+  locationCity: text("location_city"),
+  locationState: text("location_state"),
+  locationZip: text("location_zip"),
   phone: text("phone"),
   fax: text("fax"),
+  // Mailing address
+  mailingAddress1: text("mailing_address1"),
+  mailingAddress2: text("mailing_address2"),
+  mailingCity: text("mailing_city"),
+  mailingState: text("mailing_state"),
+  mailingZip: text("mailing_zip"),
+  // Taxonomy & license
+  taxonomy: text("taxonomy"),
+  taxonomyCode: text("taxonomy_code"),
+  licenseInfo: text("license_info"),
+  // NPI registry metadata
+  enumerationType: text("enumeration_type"),
+  enumerationDate: text("enumeration_date"),
+  npiLastUpdated: text("npi_last_updated"),
+  npiStatus: text("npi_status"),
+  // Org authorized official
+  authorizedOfficial: text("authorized_official"),
+  authorizedOfficialTitle: text("authorized_official_title"),
+  authorizedOfficialPhone: text("authorized_official_phone"),
+  // Other
+  otherIdentifiers: text("other_identifiers"),
   email: text("email"),
   website: text("website"),
-  taxonomy: text("taxonomy"),
-  sex: text("sex"),
-  npiStatus: text("npi_status"),
+  nppesRaw: text("nppes_raw"),
   // Codes stored as JSON string
   codesJson: text("codes_json"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -45,7 +71,7 @@ export const providers = pgTable("providers", {
 });
 
 export const tags = pgTable("tags", {
-  id: text("id").primaryKey(), // slugified name
+  id: text("id").primaryKey(),
   name: text("name").notNull(),
   color: text("color").default("#6366f1"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -62,7 +88,7 @@ export const providerTags = pgTable("provider_tags", {
 export const segments = pgTable("segments", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  filtersJson: text("filters_json"), // stored filter state
+  filtersJson: text("filters_json"),
   providerCount: integer("provider_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -70,7 +96,7 @@ export const segments = pgTable("segments", {
 export const crmActivity = pgTable("crm_activity", {
   id: text("id").primaryKey(),
   npi: text("npi").notNull().references(() => providers.npi),
-  type: text("type").notNull(), // note, call, email, meeting, status_change
+  type: text("type").notNull(),
   content: text("content"),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: text("created_by"),
