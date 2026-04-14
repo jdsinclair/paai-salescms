@@ -84,9 +84,18 @@ export default function ProviderTable({ providers, selected, maxRevenue, onToggl
                   <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(p.npi)} className="accent-accent" />
                 </td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs">
-                  <button onClick={() => onClickNpi(p.npi)} className="text-accent hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit text-xs">
-                    {p.npi}
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => onClickNpi(p.npi)} className="text-accent hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit text-xs">
+                      {p.npi}
+                    </button>
+                    <button
+                      onClick={() => onClickNpi(p.npi)}
+                      className="inline-flex items-center justify-center w-4 h-4 rounded bg-accent/15 text-accent text-[10px] cursor-pointer hover:bg-accent/30 border-none flex-shrink-0"
+                      title="View profile & generate email"
+                    >
+                      &#9993;
+                    </button>
+                  </div>
                 </td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-44" title={p.name}>{p.name}</td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs">{p.state}</td>
