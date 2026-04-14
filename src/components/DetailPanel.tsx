@@ -29,17 +29,30 @@ function Field({ label, value, color }: { label: string; value?: string | null; 
 }
 
 function EmailSection({ provider }: { provider: Provider }) {
-  const [show, setShow] = useState(false);
+  const [generated, setGenerated] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  if (!show) {
+  if (!generated) {
     return (
       <button
-        onClick={() => setShow(true)}
+        onClick={() => { setGenerated(true); setExpanded(true); }}
         className="w-full mb-4 flex items-center justify-center gap-2 px-3 py-2 rounded border border-accent/30 bg-accent/5 text-accent text-[11px] cursor-pointer hover:bg-accent/10 transition-colors"
       >
         <span style={{ fontSize: 14 }}>&#9993;</span>
         Generate Sales Email
+      </button>
+    );
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="w-full mb-4 flex items-center justify-center gap-2 px-3 py-2 rounded border border-accent/30 bg-accent/10 text-accent text-[11px] cursor-pointer hover:bg-accent/15 transition-colors"
+      >
+        <span style={{ fontSize: 14 }}>&#9993;</span>
+        View Sales Email
       </button>
     );
   }
@@ -65,7 +78,7 @@ function EmailSection({ provider }: { provider: Provider }) {
             {copied ? "Copied!" : "Copy"}
           </button>
           <button
-            onClick={() => setShow(false)}
+            onClick={() => setExpanded(false)}
             className="px-2 py-0.5 rounded border border-border bg-surface2 text-[10px] text-txt cursor-pointer hover:bg-border"
           >
             x
