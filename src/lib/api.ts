@@ -51,6 +51,7 @@ function filtersToParams(filters: Filters, sort: { field: string; dir: string },
   if (filters.hasPhone) p.set("hasPhone", "true");
   if (filters.minEmailConfidence > 0) p.set("minEmailConfidence", String(filters.minEmailConfidence));
   if (filters.minEvalPatients > 0) p.set("minEvalPatients", String(filters.minEvalPatients));
+  if (filters.maxAvgHours > 0) p.set("maxAvgHours", String(filters.maxAvgHours));
 
   // Preset-specific: underserved caps ratio at 0.3
   if (filters.preset === "underserved") p.set("maxAssessRatio", "0.3");

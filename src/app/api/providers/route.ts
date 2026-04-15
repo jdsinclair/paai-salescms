@@ -64,6 +64,9 @@ function buildWhere(params: URLSearchParams) {
   const minEvalPatients = parseInt(params.get("minEvalPatients") || "0");
   if (minEvalPatients > 0) conditions.push(gte(providers.evalPatients, minEvalPatients));
 
+  const maxAvgHours = parseFloat(params.get("maxAvgHours") || "0");
+  if (maxAvgHours > 0) conditions.push(lte(providers.avgEvalHours, maxAvgHours));
+
   // Tag filter
   const tagFilter = params.get("tagFilter");
   if (tagFilter) {
@@ -101,6 +104,7 @@ export async function GET(req: NextRequest) {
     email_confidence_score: "email_confidence_score",
     eval_patients: "eval_patients",
     avg_eval_hours: "avg_eval_hours",
+    revenue_per_patient: "revenue_per_patient",
   };
   const col = sortFields[sortField] || "revenue_proxy";
   const direction = sortDir === "asc" ? "ASC" : "DESC";
@@ -164,6 +168,7 @@ export async function GET(req: NextRequest) {
     eval_patients: r.evalPatients ?? 0,
     admin_patients: r.adminPatients ?? 0,
     avg_eval_hours: r.avgEvalHours ?? 0,
+    revenue_per_patient: r.revenuePerPatient ?? 0,
     codes: r.codesJson ? JSON.parse(r.codesJson) : {},
     crm_status: r.crmStatus,
     crm_notes: r.crmNotes,

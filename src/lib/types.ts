@@ -27,6 +27,7 @@ export interface Provider {
   eval_patients: number;
   admin_patients: number;
   avg_eval_hours: number;
+  revenue_per_patient: number;
   // CRM fields (from DB)
   crm_status?: string;
   crm_notes?: string;
@@ -89,6 +90,7 @@ export interface Filters {
   hasPhone: boolean;
   minEmailConfidence: number;
   minEvalPatients: number;
+  maxAvgHours: number;
 }
 
 export interface Segment {

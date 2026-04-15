@@ -111,6 +111,12 @@ const PRESETS = [
     desc: "High 96130 + low neuropsych",
     tip: "Practices doing high-volume psychological (not neuropsych) evaluations — primarily ADHD, learning disability, and behavioral assessments. High 96130 billing but low 96132/33 presence, meaning they stick to standard psych eval codes rather than neuropsych. These are often pediatric or school-age focused clinics doing structured, repeatable assessment batteries at scale.",
   },
+  {
+    key: "factories",
+    label: "Factories (Turn & Burn)",
+    desc: "100+ patients, <2.5 hrs avg, $10K+ revenue",
+    tip: "High-throughput evaluation mills. These practices see 100+ patients per year with short average eval times (under 2.5 hours each). They make money on volume, not depth — structured, repeatable batteries cranked out at scale. Every minute saved per report multiplies across hundreds of patients. These are your highest-ROI targets for report automation because they feel the pain of report writing bottlenecks the most acutely.",
+  },
 ];
 
 export default function Sidebar({ states, filters, setFilters, applyPreset, allTagNames, savedSegments, loadSegment, deleteSegment }: Props) {

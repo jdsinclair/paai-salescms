@@ -31,6 +31,7 @@ const DEFAULT_FILTERS: Filters = {
   hasPhone: false,
   minEmailConfidence: 0,
   minEvalPatients: 0,
+  maxAvgHours: 0,
 };
 
 export default function Home() {
@@ -97,7 +98,19 @@ export default function Home() {
   const detailProvider = detailNpi ? providers.find((p) => p.npi === detailNpi) : null;
 
   function applyPreset(preset: string) {
-    const f = { ...DEFAULT_FILTERS, preset };
+    // Presets are ADDITIVE — keep state, email, phone, tag, search filters
+    // Only reset the threshold values the preset controls
+    const keep = {
+      states: filters.states,
+      hasEmail: filters.hasEmail,
+      hasPhone: filters.hasPhone,
+      minEmailConfidence: filters.minEmailConfidence,
+      tagFilter: filters.tagFilter,
+      search: filters.search,
+      orgOnly: filters.orgOnly,
+      indivOnly: filters.indivOnly,
+    };
+    const f = { ...DEFAULT_FILTERS, ...keep, preset };
     switch (preset) {
       case "all_assessment": f.minAssessUnits = 1; break;
       case "top5": f.minAssessUnits = 100; f.minAssessRatio = 0.4; f.minComplexity = 0.25; f.minRevenue = 20000; break;
@@ -105,6 +118,7 @@ export default function Home() {
       case "underserved": f.minAdminUnits = 100; break;
       case "neuropsych": f.neuroOnly = true; f.minComplexity = 0.2; f.minRevenue = 10000; break;
       case "adhd": f.minAssessUnits = 50; f.minRevenue = 5000; break;
+      case "factories": f.minEvalPatients = 100; f.maxAvgHours = 2.5; f.minRevenue = 10000; break;
     }
     setFilters(f);
     setPage(1);
