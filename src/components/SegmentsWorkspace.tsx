@@ -23,7 +23,7 @@ interface Props {
 }
 
 // Sub-views
-type View = "list" | "compose" | "prep";
+type View = "list" | "compose" | "prep" | "manage";
 
 export default function SegmentsWorkspace({ segments, dbTags, onLoadSegment, onDeleteSegment, onSwitchToProviders, onRefreshSegments }: Props) {
   const [view, setView] = useState<View>("list");
@@ -65,6 +65,93 @@ export default function SegmentsWorkspace({ segments, dbTags, onLoadSegment, onD
   const [prepEditing, setPrepEditing] = useState(false);
   const [prepLoading, setPrepLoading] = useState(false);
   const [prepStats, setPrepStats] = useState({ queued: 0, skipped: 0, total: 0 });
+
+  // Manage state
+  const [manageProviders, setManageProviders] = useState<{ verified: Provider[]; unverified: Provider[]; noEmail: Provider[] }>({ verified: [], unverified: [], noEmail: [] });
+  const [manageLoading, setManageLoading] = useState(false);
+  const [manageTab, setManageTab] = useState<"noEmail" | "unverified" | "verified">("noEmail");
+
+  async function openManage(seg: SegmentWithEmail) {
+    setActiveSeg(seg);
+    setManageLoading(true);
+    setView("manage");
+
+    // Fetch all providers in segment
+    const all: Provider[] = [];
+    let page = 1;
+    while (true) {
+      const data = await fetchProviders(seg.filters, { field: "revenue_proxy", dir: "desc" }, page, 500);
+      all.push(...data.providers);
+      if (all.length >= data.total) break;
+      page++;
+    }
+
+    const verified: Provider[] = [];
+    const unverified: Provider[] = [];
+    const noEmail: Provider[] = [];
+
+    for (const p of all) {
+      if (p.contact_email && (p.email_confidence === "verified")) {
+        verified.push(p);
+      } else if (p.contact_email) {
+        unverified.push(p);
+      } else {
+        noEmail.push(p);
+      }
+    }
+
+    setManageProviders({ verified, unverified, noEmail });
+    setManageTab(noEmail.length > 0 ? "noEmail" : unverified.length > 0 ? "unverified" : "verified");
+    setManageLoading(false);
+  }
+
+  async function tagAndRemoveNoEmail(providers: Provider[]) {
+    if (!providers.length) return;
+    // Tag them as "no-email-found"
+    const npis = providers.map((p) => p.npi);
+    await fetch("/api/tags", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "no-email-found", npis }),
+    });
+    // Refresh
+    if (activeSeg) openManage(activeSeg);
+    onRefreshSegments();
+  }
+
+  async function approveEmail(npi: string) {
+    await fetch("/api/providers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ npi, email_confidence: "verified", email_confidence_score: 100 }),
+    });
+    if (activeSeg) openManage(activeSeg);
+  }
+
+  async function denyEmail(npi: string) {
+    await fetch("/api/providers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ npi, email_confidence: "denied", email_confidence_score: 0 }),
+    });
+    if (activeSeg) openManage(activeSeg);
+  }
+
+  function exportNoEmail(providers: Provider[]) {
+    const headers = ["NPI","Name","First_Name","Last_Name","City","State","Provider_Type","Phone","Revenue_Proxy","Assessment_Units"];
+    const rows = providers.map((p) => [
+      p.npi, `"${p.name}"`, p.first_name || "", p.last_name || "", p.city, p.state,
+      `"${p.provider_type}"`, p.phone || "", p.revenue_proxy, p.assessment_units,
+    ].join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `paai_missing_emails_${activeSeg?.name?.replace(/\s+/g, "_") || "segment"}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function openCompose(seg: SegmentWithEmail) {
     setActiveSeg(seg);
@@ -243,8 +330,11 @@ export default function SegmentsWorkspace({ segments, dbTags, onLoadSegment, onD
                       <div className="text-[10px] text-dim mt-0.5">{seg.providerCount} providers · created {new Date(seg.createdAt).toLocaleDateString()}</div>
                     </div>
                     <div className="flex gap-1.5">
+                      <button onClick={() => openManage(seg)} className="px-2.5 py-1 rounded border border-info bg-info/10 text-info text-[11px] cursor-pointer hover:bg-info/20">
+                        Manage Emails{stats ? ` (${stats.noEmail} missing)` : ""}
+                      </button>
                       <button onClick={() => openCompose(seg)} className={`px-2.5 py-1 rounded border text-[11px] cursor-pointer ${seg.hasEmail ? "border-ok bg-ok/10 text-ok hover:bg-ok/20" : "border-accent bg-accent/10 text-accent hover:bg-accent/20"}`}>
-                        {seg.hasEmail ? "Edit Email" : "Compose Email"}
+                        {seg.hasEmail ? "Edit Email" : "Compose"}
                       </button>
                       {seg.hasEmail && emailReady && (
                         <button onClick={() => openPrep(seg)} className="px-2.5 py-1 rounded border border-warn bg-warn/10 text-warn text-[11px] cursor-pointer hover:bg-warn/20">
@@ -517,6 +607,157 @@ export default function SegmentsWorkspace({ segments, dbTags, onLoadSegment, onD
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // MANAGE EMAILS VIEW
+  if (view === "manage" && activeSeg) {
+    if (manageLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-border border-t-accent rounded-full animate-spin" />
+          <span className="ml-2 text-dim text-xs">Loading segment providers...</span>
+        </div>
+      );
+    }
+
+    const currentList = manageTab === "noEmail" ? manageProviders.noEmail : manageTab === "unverified" ? manageProviders.unverified : manageProviders.verified;
+
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
+          <div className="flex items-center gap-3">
+            <button onClick={() => { setView("list"); onRefreshSegments(); }} className="text-dim text-xs cursor-pointer hover:text-txt">&larr; Back</button>
+            <h2 className="text-sm font-bold text-txt">Manage Emails: {activeSeg.name}</h2>
+          </div>
+          <div className="flex gap-3 text-xs">
+            <span className="text-ok">{manageProviders.verified.length} verified</span>
+            <span className="text-info">{manageProviders.unverified.length} unverified</span>
+            <span className="text-err">{manageProviders.noEmail.length} no email</span>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex items-center gap-0 border-b border-border bg-surface">
+          {[
+            { key: "noEmail" as const, label: `No Email (${manageProviders.noEmail.length})`, color: "text-err" },
+            { key: "unverified" as const, label: `Unverified (${manageProviders.unverified.length})`, color: "text-info" },
+            { key: "verified" as const, label: `Verified (${manageProviders.verified.length})`, color: "text-ok" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setManageTab(t.key)}
+              className={`px-4 py-2 text-xs font-semibold cursor-pointer border-b-2 transition-all ${manageTab === t.key ? `border-accent ${t.color}` : "border-transparent text-dim hover:text-txt"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Actions bar */}
+        <div className="flex items-center gap-2 px-6 py-2 border-b border-border bg-surface">
+          {manageTab === "noEmail" && manageProviders.noEmail.length > 0 && (
+            <>
+              <button
+                onClick={() => exportNoEmail(manageProviders.noEmail)}
+                className="px-3 py-1 rounded border border-info bg-info/10 text-info text-[11px] cursor-pointer hover:bg-info/20"
+              >
+                Export for Clay ({manageProviders.noEmail.length})
+              </button>
+              <button
+                onClick={() => tagAndRemoveNoEmail(manageProviders.noEmail)}
+                className="px-3 py-1 rounded border border-err bg-err/10 text-err text-[11px] cursor-pointer hover:bg-err/20"
+              >
+                Tag &quot;no-email-found&quot; &amp; remove all ({manageProviders.noEmail.length})
+              </button>
+              <span className="text-[10px] text-dim ml-2">Export to Clay for enrichment, or tag and remove from segment</span>
+            </>
+          )}
+          {manageTab === "unverified" && manageProviders.unverified.length > 0 && (
+            <span className="text-[10px] text-dim">Review each email — approve or deny individually</span>
+          )}
+          {manageTab === "verified" && (
+            <span className="text-[10px] text-dim">{manageProviders.verified.length} emails ready for outbound</span>
+          )}
+        </div>
+
+        {/* Provider list */}
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">NPI</th>
+                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Name</th>
+                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">City, ST</th>
+                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Phone</th>
+                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Email</th>
+                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Confidence</th>
+                <th className="bg-surface2 px-3 py-2 text-right text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Revenue</th>
+                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentList.map((p) => {
+                const hasPhone = p.phone && p.phone !== "NO_PHONE" && p.phone !== "NOT_FOUND";
+                return (
+                  <tr key={p.npi} className="hover:bg-accent/5">
+                    <td className="px-3 py-1.5 border-b border-border text-xs text-dim">{p.npi}</td>
+                    <td className="px-3 py-1.5 border-b border-border text-xs text-txt">
+                      {p.first_name || p.last_name
+                        ? `${(p.first_name || "").replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\B\w+/g, (c) => c.toLowerCase())} ${(p.last_name || "").replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\B\w+/g, (c) => c.toLowerCase())}`.trim()
+                        : p.name}
+                    </td>
+                    <td className="px-3 py-1.5 border-b border-border text-xs text-dim">{p.city}, {p.state}</td>
+                    <td className="px-3 py-1.5 border-b border-border text-xs">{hasPhone ? <span className="text-ok">{p.phone}</span> : <span className="text-dim">—</span>}</td>
+                    <td className="px-3 py-1.5 border-b border-border text-xs">
+                      {p.contact_email ? (
+                        <span className={p.email_confidence === "denied" ? "text-dim line-through" : "text-accent"}>{p.contact_email}</span>
+                      ) : (
+                        <span className="text-err">none</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 border-b border-border text-xs">
+                      {p.email_confidence ? (
+                        <span
+                          className="px-1.5 py-0 rounded text-[9px] font-semibold"
+                          style={{
+                            background: p.email_confidence === "verified" ? "rgba(34,197,94,0.2)" : p.email_confidence === "denied" ? "rgba(239,68,68,0.2)" : p.email_confidence === "high" ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.2)",
+                            color: p.email_confidence === "verified" ? "#4ade80" : p.email_confidence === "denied" ? "#f87171" : p.email_confidence === "high" ? "#4ade80" : "#fbbf24",
+                          }}
+                        >
+                          {p.email_confidence}
+                        </span>
+                      ) : <span className="text-dim">—</span>}
+                    </td>
+                    <td className="px-3 py-1.5 border-b border-border text-xs text-right tabular-nums">${p.revenue_proxy.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 border-b border-border text-xs">
+                      <div className="flex gap-1">
+                        {manageTab === "unverified" && (
+                          <>
+                            <button onClick={() => approveEmail(p.npi)} className="px-1.5 py-0 rounded border border-ok bg-ok/10 text-[9px] text-ok cursor-pointer hover:bg-ok/20">approve</button>
+                            <button onClick={() => denyEmail(p.npi)} className="px-1.5 py-0 rounded border border-err bg-err/10 text-[9px] text-err cursor-pointer hover:bg-err/20">deny</button>
+                          </>
+                        )}
+                        {manageTab === "verified" && (
+                          <button onClick={() => denyEmail(p.npi)} className="px-1.5 py-0 rounded border border-border bg-surface2 text-[9px] text-dim cursor-pointer hover:text-err">revoke</button>
+                        )}
+                        {manageTab === "noEmail" && (
+                          <span className="text-[9px] text-dim">Export to Clay or remove</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {currentList.length === 0 && (
+                <tr><td colSpan={8} className="px-3 py-8 text-center text-dim text-xs">
+                  {manageTab === "noEmail" ? "All providers have emails!" : manageTab === "unverified" ? "No unverified emails" : "No verified emails yet"}
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
