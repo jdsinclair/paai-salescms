@@ -15,6 +15,7 @@ interface Props {
   provider: Provider;
   onClose: () => void;
   onRemoveTag: (tag: string) => void;
+  onUpdateEmail: (npi: string, email: string | null) => void;
   onEnriched?: () => void;
 }
 
@@ -24,6 +25,92 @@ function Field({ label, value, color }: { label: string; value?: string | null; 
     <div className="mt-1.5">
       <div className="text-[10px] text-dim uppercase">{label}</div>
       <div className="text-[11px] mt-0.5 break-words" style={color ? { color } : undefined}>{value}</div>
+    </div>
+  );
+}
+
+function EmailField({ provider: p, nppesEmail, onUpdateEmail }: { provider: Provider; nppesEmail?: string | null; onUpdateEmail: (npi: string, email: string | null) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+
+  const confColor = p.email_confidence === "high" ? { bg: "rgba(34,197,94,0.2)", text: "#4ade80" }
+    : p.email_confidence === "medium" ? { bg: "rgba(6,182,212,0.2)", text: "#22d3ee" }
+    : { bg: "rgba(245,158,11,0.2)", text: "#fbbf24" };
+
+  if (editing) {
+    return (
+      <div className="mt-1.5 bg-bg border border-border rounded p-2">
+        <div className="text-[10px] text-dim uppercase mb-1">{p.contact_email ? "Replace Email" : "Add Email"}</div>
+        <input
+          type="email"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          placeholder="email@example.com"
+          className="w-full bg-surface border border-border text-txt text-xs rounded px-2 py-1 mb-1.5 focus:outline-none focus:border-accent"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && editValue.includes("@")) {
+              onUpdateEmail(p.npi, editValue.trim());
+              setEditing(false);
+            }
+            if (e.key === "Escape") setEditing(false);
+          }}
+        />
+        <div className="flex gap-1">
+          <button
+            onClick={() => { if (editValue.includes("@")) { onUpdateEmail(p.npi, editValue.trim()); setEditing(false); } }}
+            className="px-2 py-0.5 rounded border border-ok bg-ok/10 text-ok text-[10px] cursor-pointer hover:bg-ok/20"
+          >Save</button>
+          <button onClick={() => setEditing(false)} className="px-2 py-0.5 rounded border border-border bg-surface2 text-dim text-[10px] cursor-pointer hover:bg-border">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1.5">
+      {p.contact_email ? (
+        <div className="bg-bg border border-border rounded p-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-dim uppercase">Clay Email</span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => { setEditValue(p.contact_email || ""); setEditing(true); }}
+                className="px-1.5 py-0 rounded border border-border bg-surface2 text-[9px] text-dim cursor-pointer hover:text-txt hover:bg-border"
+              >replace</button>
+              <button
+                onClick={() => onUpdateEmail(p.npi, null)}
+                className="px-1.5 py-0 rounded border border-border bg-surface2 text-[9px] text-err cursor-pointer hover:bg-err/10"
+              >remove</button>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-accent font-semibold">{p.contact_email}</span>
+            {p.email_confidence && (
+              <span className="px-1.5 py-0 rounded text-[9px] font-semibold" style={{ background: confColor.bg, color: confColor.text }}>
+                {p.email_confidence} ({p.email_confidence_score})
+              </span>
+            )}
+            <span className="text-[9px] text-dim">via {p.email_source || "clay"}</span>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => { setEditValue(""); setEditing(true); }}
+          className="w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded border border-dashed border-border text-[10px] text-dim cursor-pointer hover:border-accent hover:text-accent transition-colors"
+        >
+          + Add email manually
+        </button>
+      )}
+
+      {/* NPPES Direct Messaging (always show if present) */}
+      {nppesEmail && (
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="text-[10px] text-dim">NPPES Direct: </span>
+          <span className="text-[11px] text-dim">{nppesEmail}</span>
+          <span className="px-1 py-0 rounded text-[8px] font-semibold" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>HIE</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -107,7 +194,7 @@ function EmailSection({ provider }: { provider: Provider }) {
   );
 }
 
-export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnriched }: Props) {
+export default function DetailPanel({ provider: p, onClose, onRemoveTag, onUpdateEmail, onEnriched }: Props) {
   const [enriching, setEnriching] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [enrichResult, setEnrichResult] = useState<Record<string, any> | null>(null);
@@ -227,42 +314,15 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
             </div>
           )}
 
-          {/* Phone + email row */}
-          {(hasPhone || email || p.contact_email) && (
-            <div className="mt-1.5 flex flex-col gap-1">
-              {hasPhone && <div><span className="text-[10px] text-dim">Phone: </span><span className="text-xs text-ok font-semibold">{phone}</span></div>}
-              {p.contact_email && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] text-dim">Email: </span>
-                  <span className="text-xs text-accent font-semibold">{p.contact_email}</span>
-                  <span className="text-[9px] text-dim">({p.email_source || "enriched"})</span>
-                  {p.email_confidence && (
-                    <span
-                      className="px-1.5 py-0 rounded text-[9px] font-semibold"
-                      style={{
-                        background: p.email_confidence === "high" ? "rgba(34,197,94,0.2)" :
-                          p.email_confidence === "medium" ? "rgba(6,182,212,0.2)" :
-                          "rgba(245,158,11,0.2)",
-                        color: p.email_confidence === "high" ? "#4ade80" :
-                          p.email_confidence === "medium" ? "#22d3ee" :
-                          "#fbbf24",
-                      }}
-                    >
-                      {p.email_confidence} {p.email_confidence_score ? `(${p.email_confidence_score})` : ""}
-                    </span>
-                  )}
-                </div>
-              )}
-              {email && !p.contact_email && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-dim">Email: </span>
-                  <span className="text-xs text-accent font-semibold">{email}</span>
-                  <span className="px-1.5 py-0 rounded text-[9px] font-semibold" style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}>NPPES direct msg</span>
-                </div>
-              )}
-              {email && p.contact_email && <div><span className="text-[10px] text-dim">NPPES Direct: </span><span className="text-xs text-dim">{email}</span></div>}
+          {/* Phone */}
+          {hasPhone && (
+            <div className="mt-1.5">
+              <span className="text-[10px] text-dim">Phone: </span><span className="text-xs text-ok font-semibold">{phone}</span>
             </div>
           )}
+
+          {/* Clay Email with actions */}
+          <EmailField provider={p} nppesEmail={email} onUpdateEmail={onUpdateEmail} />
         </div>
 
         {/* Expand chevron */}

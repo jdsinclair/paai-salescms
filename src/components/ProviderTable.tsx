@@ -84,7 +84,7 @@ export default function ProviderTable({ providers, selected, maxRevenue, onToggl
                   <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(p.npi)} className="accent-accent" />
                 </td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <button onClick={() => onClickNpi(p.npi)} className="text-accent hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit text-xs">
                       {p.npi}
                     </button>
@@ -95,6 +95,22 @@ export default function ProviderTable({ providers, selected, maxRevenue, onToggl
                     >
                       &#9993;
                     </button>
+                    {p.contact_email && (
+                      <span
+                        className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] cursor-default flex-shrink-0"
+                        style={{
+                          background: p.email_confidence === "high" ? "rgba(34,197,94,0.2)" :
+                            p.email_confidence === "medium" ? "rgba(6,182,212,0.2)" :
+                            "rgba(245,158,11,0.2)",
+                          color: p.email_confidence === "high" ? "#4ade80" :
+                            p.email_confidence === "medium" ? "#22d3ee" :
+                            "#fbbf24",
+                        }}
+                        title={`${p.contact_email} (${p.email_confidence || "unknown"} confidence${p.email_confidence_score ? `, score ${p.email_confidence_score}` : ""})`}
+                      >
+                        @
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-44" title={p.name}>{p.name}</td>

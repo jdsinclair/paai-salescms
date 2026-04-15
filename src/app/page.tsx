@@ -108,6 +108,21 @@ export default function Home() {
     setPage(1);
   }
 
+  async function handleUpdateEmail(npi: string, email: string | null) {
+    await fetch("/api/providers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        npi,
+        contact_email: email,
+        email_source: email ? "manual" : null,
+        email_confidence: null,
+        email_confidence_score: null,
+      }),
+    });
+    loadProviders();
+  }
+
   function toggleSelect(npi: string) {
     setSelected((prev) => { const next = new Set(prev); if (next.has(npi)) next.delete(npi); else next.add(npi); return next; });
   }
@@ -318,6 +333,7 @@ export default function Home() {
           provider={detailProvider}
           onClose={() => setDetailNpi(null)}
           onRemoveTag={(tag) => handleRemoveTag(detailProvider.npi, tag)}
+          onUpdateEmail={handleUpdateEmail}
           onEnriched={loadProviders}
         />
       )}

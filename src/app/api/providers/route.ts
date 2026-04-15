@@ -222,6 +222,10 @@ export async function PATCH(req: NextRequest) {
     fax: "fax",
     email: "email",
     website: "website",
+    contact_email: "contactEmail",
+    email_source: "emailSource",
+    email_confidence: "emailConfidence",
+    email_confidence_score: "emailConfidenceScore",
   };
 
   const dbUpdates: Record<string, string | null> = { updatedAt: new Date().toISOString() };
