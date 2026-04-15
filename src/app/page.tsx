@@ -109,16 +109,14 @@ export default function Home() {
     setPage(1);
   }
 
-  async function handleUpdateEmail(npi: string, email: string | null) {
+  async function handleUpdateEmail(npi: string, email: string | null, extra?: Record<string, string | number | null>) {
     await fetch("/api/providers", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         npi,
         contact_email: email,
-        email_source: email ? "manual" : null,
-        email_confidence: null,
-        email_confidence_score: null,
+        ...(extra || { email_source: email ? "manual" : null, email_confidence: null, email_confidence_score: null }),
       }),
     });
     loadProviders();

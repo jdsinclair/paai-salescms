@@ -97,20 +97,22 @@ export default function ProviderTable({ providers, selected, maxRevenue, onToggl
                     </button>
                     {p.contact_email && (
                       <span
-                        className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] cursor-default flex-shrink-0"
+                        className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] cursor-default flex-shrink-0 ${p.email_confidence === "denied" ? "opacity-40" : ""}`}
                         style={{
                           background: p.email_confidence === "verified" ? "rgba(34,197,94,0.35)" :
+                            p.email_confidence === "denied" ? "rgba(239,68,68,0.2)" :
                             p.email_confidence === "high" ? "rgba(34,197,94,0.2)" :
                             p.email_confidence === "medium" ? "rgba(6,182,212,0.2)" :
                             "rgba(245,158,11,0.2)",
                           color: p.email_confidence === "verified" ? "#4ade80" :
+                            p.email_confidence === "denied" ? "#f87171" :
                             p.email_confidence === "high" ? "#4ade80" :
                             p.email_confidence === "medium" ? "#22d3ee" :
                             "#fbbf24",
                         }}
-                        title={`${p.contact_email} (${p.email_confidence === "verified" ? "VERIFIED" : p.email_confidence || "unknown"}${p.email_confidence_score ? `, score ${p.email_confidence_score}` : ""})`}
+                        title={`${p.contact_email} (${p.email_confidence === "verified" ? "VERIFIED" : p.email_confidence === "denied" ? "DENIED — inactive" : p.email_confidence || "unknown"}${p.email_confidence_score ? `, score ${p.email_confidence_score}` : ""})`}
                       >
-                        {p.email_confidence === "verified" ? "\u2713" : "@"}
+                        {p.email_confidence === "verified" ? "\u2713" : p.email_confidence === "denied" ? "\u2717" : "@"}
                       </span>
                     )}
                   </div>

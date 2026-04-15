@@ -36,8 +36,8 @@ export default function EmailReview({ onDone }: Props) {
       all.push(...data.providers);
       if (all.length >= data.total) break;
     }
-    // Filter out already-verified (accepted) unless viewing "high"
-    const filtered = filter === "high" ? all : all.filter((p) => p.email_confidence !== "verified");
+    // Filter out already-verified and denied unless viewing specific filter
+    const filtered = filter === "high" ? all : all.filter((p) => p.email_confidence !== "verified" && p.email_confidence !== "denied");
     setQueue(filtered);
     setCurrentIdx(0);
     setStats({ accepted: 0, denied: 0, total: filtered.length });
@@ -64,15 +64,14 @@ export default function EmailReview({ onDone }: Props) {
       });
       setStats((s) => ({ ...s, accepted: s.accepted + 1 }));
     } else {
+      // Keep the email but mark as denied — won't be used for outbound
       await fetch("/api/providers", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           npi: current.npi,
-          contact_email: null,
-          email_source: null,
-          email_confidence: null,
-          email_confidence_score: null,
+          email_confidence: "denied",
+          email_confidence_score: 0,
         }),
       });
       setStats((s) => ({ ...s, denied: s.denied + 1 }));

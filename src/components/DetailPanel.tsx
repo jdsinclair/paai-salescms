@@ -29,13 +29,26 @@ function Field({ label, value, color }: { label: string; value?: string | null; 
   );
 }
 
-function EmailField({ provider: p, nppesEmail, onUpdateEmail }: { provider: Provider; nppesEmail?: string | null; onUpdateEmail: (npi: string, email: string | null) => void }) {
+function EmailField({ provider: p, nppesEmail, onUpdateEmail }: { provider: Provider; nppesEmail?: string | null; onUpdateEmail: (npi: string, email: string | null, extra?: Record<string, string | number | null>) => void }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
 
-  const confColor = p.email_confidence === "high" ? { bg: "rgba(34,197,94,0.2)", text: "#4ade80" }
-    : p.email_confidence === "medium" ? { bg: "rgba(6,182,212,0.2)", text: "#22d3ee" }
-    : { bg: "rgba(245,158,11,0.2)", text: "#fbbf24" };
+  const isDenied = p.email_confidence === "denied";
+  const isVerified = p.email_confidence === "verified";
+
+  const confStyle = isVerified ? { bg: "rgba(34,197,94,0.3)", text: "#4ade80", label: "verified" }
+    : isDenied ? { bg: "rgba(239,68,68,0.2)", text: "#f87171", label: "denied — won't be used for outbound" }
+    : p.email_confidence === "high" ? { bg: "rgba(34,197,94,0.2)", text: "#4ade80", label: "high" }
+    : p.email_confidence === "medium" ? { bg: "rgba(6,182,212,0.2)", text: "#22d3ee", label: "medium" }
+    : { bg: "rgba(245,158,11,0.2)", text: "#fbbf24", label: p.email_confidence || "unreviewed" };
+
+  function handleApprove() {
+    onUpdateEmail(p.npi, p.contact_email || null, { email_confidence: "verified", email_confidence_score: 100 });
+  }
+
+  function handleDeny() {
+    onUpdateEmail(p.npi, p.contact_email || null, { email_confidence: "denied", email_confidence_score: 0 });
+  }
 
   if (editing) {
     return (
@@ -50,7 +63,7 @@ function EmailField({ provider: p, nppesEmail, onUpdateEmail }: { provider: Prov
           autoFocus
           onKeyDown={(e) => {
             if (e.key === "Enter" && editValue.includes("@")) {
-              onUpdateEmail(p.npi, editValue.trim());
+              onUpdateEmail(p.npi, editValue.trim(), { email_source: "manual", email_confidence: "verified", email_confidence_score: 100 });
               setEditing(false);
             }
             if (e.key === "Escape") setEditing(false);
@@ -58,7 +71,7 @@ function EmailField({ provider: p, nppesEmail, onUpdateEmail }: { provider: Prov
         />
         <div className="flex gap-1">
           <button
-            onClick={() => { if (editValue.includes("@")) { onUpdateEmail(p.npi, editValue.trim()); setEditing(false); } }}
+            onClick={() => { if (editValue.includes("@")) { onUpdateEmail(p.npi, editValue.trim(), { email_source: "manual", email_confidence: "verified", email_confidence_score: 100 }); setEditing(false); } }}
             className="px-2 py-0.5 rounded border border-ok bg-ok/10 text-ok text-[10px] cursor-pointer hover:bg-ok/20"
           >Save</button>
           <button onClick={() => setEditing(false)} className="px-2 py-0.5 rounded border border-border bg-surface2 text-dim text-[10px] cursor-pointer hover:bg-border">Cancel</button>
@@ -70,29 +83,44 @@ function EmailField({ provider: p, nppesEmail, onUpdateEmail }: { provider: Prov
   return (
     <div className="mt-1.5">
       {p.contact_email ? (
-        <div className="bg-bg border border-border rounded p-2">
+        <div className={`bg-bg border rounded p-2 ${isDenied ? "border-err/30 opacity-70" : "border-border"}`}>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-dim uppercase">Clay Email</span>
+            <span className="text-[10px] text-dim uppercase">
+              {isDenied ? "Email (inactive)" : isVerified ? "Email (approved)" : "Clay Email"}
+            </span>
             <div className="flex gap-1">
+              {/* Approve / Deny actions */}
+              {!isVerified && !isDenied && (
+                <>
+                  <button onClick={handleApprove} className="px-1.5 py-0 rounded border border-ok bg-ok/10 text-[9px] text-ok cursor-pointer hover:bg-ok/20">approve</button>
+                  <button onClick={handleDeny} className="px-1.5 py-0 rounded border border-err bg-err/10 text-[9px] text-err cursor-pointer hover:bg-err/20">deny</button>
+                </>
+              )}
+              {isVerified && (
+                <button onClick={handleDeny} className="px-1.5 py-0 rounded border border-border bg-surface2 text-[9px] text-dim cursor-pointer hover:text-err hover:bg-border">revoke</button>
+              )}
+              {isDenied && (
+                <button onClick={handleApprove} className="px-1.5 py-0 rounded border border-ok bg-ok/10 text-[9px] text-ok cursor-pointer hover:bg-ok/20">approve</button>
+              )}
               <button
                 onClick={() => { setEditValue(p.contact_email || ""); setEditing(true); }}
                 className="px-1.5 py-0 rounded border border-border bg-surface2 text-[9px] text-dim cursor-pointer hover:text-txt hover:bg-border"
               >replace</button>
-              <button
-                onClick={() => onUpdateEmail(p.npi, null)}
-                className="px-1.5 py-0 rounded border border-border bg-surface2 text-[9px] text-err cursor-pointer hover:bg-err/10"
-              >remove</button>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-accent font-semibold">{p.contact_email}</span>
-            {p.email_confidence && (
-              <span className="px-1.5 py-0 rounded text-[9px] font-semibold" style={{ background: confColor.bg, color: confColor.text }}>
-                {p.email_confidence} ({p.email_confidence_score})
-              </span>
-            )}
+            <span className={`text-xs font-semibold ${isDenied ? "text-dim line-through" : "text-accent"}`}>{p.contact_email}</span>
+            <span className="px-1.5 py-0 rounded text-[9px] font-semibold" style={{ background: confStyle.bg, color: confStyle.text }}>
+              {confStyle.label}
+            </span>
             <span className="text-[9px] text-dim">via {p.email_source || "clay"}</span>
           </div>
+          {isDenied && (
+            <div className="text-[10px] text-err/70 mt-1">This email won&apos;t be used for outbound campaigns</div>
+          )}
+          {isVerified && (
+            <div className="text-[10px] text-ok/70 mt-1">Manually approved for outbound</div>
+          )}
         </div>
       ) : (
         <button
@@ -103,7 +131,7 @@ function EmailField({ provider: p, nppesEmail, onUpdateEmail }: { provider: Prov
         </button>
       )}
 
-      {/* NPPES Direct Messaging (always show if present) */}
+      {/* NPPES Direct Messaging */}
       {nppesEmail && (
         <div className="mt-1 flex items-center gap-1.5">
           <span className="text-[10px] text-dim">NPPES Direct: </span>
