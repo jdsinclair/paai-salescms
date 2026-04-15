@@ -67,6 +67,8 @@ export const providers = pgTable("providers", {
   email: text("email"),             // from NPPES endpoints (Direct Messaging)
   contactEmail: text("contact_email"), // from Clay/Apollo/manual enrichment
   emailSource: text("email_source"),   // "nppes", "clay", "apollo", "manual"
+  emailConfidence: text("email_confidence"),       // "high", "medium", "low", "generic", "direct_messaging"
+  emailConfidenceScore: integer("email_confidence_score"), // 0-100
   website: text("website"),
   nppesRaw: text("nppes_raw"),
   // Codes stored as JSON string

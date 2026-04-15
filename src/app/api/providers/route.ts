@@ -187,6 +187,8 @@ export async function GET(req: NextRequest) {
     other_identifiers: r.otherIdentifiers,
     contact_email: r.contactEmail,
     email_source: r.emailSource,
+    email_confidence: r.emailConfidence,
+    email_confidence_score: r.emailConfidenceScore,
     endpoints_json: r.endpointsJson,
     practice_locations_json: r.practiceLocationsJson,
     other_names_json: r.otherNamesJson,

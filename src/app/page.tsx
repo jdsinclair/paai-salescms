@@ -10,6 +10,7 @@ import DetailPanel from "@/components/DetailPanel";
 import TagModal from "@/components/TagModal";
 import SegmentModal from "@/components/SegmentModal";
 import SegmentsWorkspace from "@/components/SegmentsWorkspace";
+import ImportModal from "@/components/ImportModal";
 import Toast from "@/components/Toast";
 
 const DEFAULT_FILTERS: Filters = {
@@ -51,6 +52,7 @@ export default function Home() {
 
   const [showTagModal, setShowTagModal] = useState(false);
   const [showSegmentModal, setShowSegmentModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const fetchRef = useRef(0); // debounce token
@@ -235,6 +237,7 @@ export default function Home() {
               <div className="flex gap-1.5">
                 <button onClick={() => exportCSV("filtered")} className="px-3 py-1.5 rounded border border-border bg-surface2 text-txt text-[11px] hover:bg-border cursor-pointer">Export Filtered CSV</button>
                 <button onClick={() => exportCSV("selected")} className="px-3 py-1.5 rounded border border-border bg-surface2 text-txt text-[11px] hover:bg-border cursor-pointer">Export Selected CSV</button>
+                <button onClick={() => setShowImportModal(true)} className="px-3 py-1.5 rounded border border-info bg-info/10 text-info text-[11px] hover:bg-info/20 cursor-pointer">Import Emails</button>
                 <button onClick={() => setShowSegmentModal(true)} className="px-3 py-1.5 rounded border border-accent bg-accent text-white text-[11px] hover:bg-accent-dim cursor-pointer">Save Segment</button>
               </div>
             </div>
@@ -320,6 +323,7 @@ export default function Home() {
 
       {showTagModal && <TagModal allTagNames={allTagNames} onApply={handleApplyTag} onClose={() => setShowTagModal(false)} />}
       {showSegmentModal && <SegmentModal count={total} onSave={handleSaveSegment} onClose={() => setShowSegmentModal(false)} />}
+      {showImportModal && <ImportModal onClose={() => setShowImportModal(false)} onDone={loadProviders} />}
       {toast && <Toast message={toast} />}
     </div>
   );

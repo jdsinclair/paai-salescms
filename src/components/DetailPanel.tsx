@@ -229,10 +229,37 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onEnric
 
           {/* Phone + email row */}
           {(hasPhone || email || p.contact_email) && (
-            <div className="mt-1.5 flex flex-col gap-0.5">
+            <div className="mt-1.5 flex flex-col gap-1">
               {hasPhone && <div><span className="text-[10px] text-dim">Phone: </span><span className="text-xs text-ok font-semibold">{phone}</span></div>}
-              {p.contact_email && <div><span className="text-[10px] text-dim">Email: </span><span className="text-xs text-accent font-semibold">{p.contact_email}</span> <span className="text-[9px] text-dim">({p.email_source || "enriched"})</span></div>}
-              {email && !p.contact_email && <div><span className="text-[10px] text-dim">Email: </span><span className="text-xs text-accent font-semibold">{email}</span> <span className="text-[9px] text-dim">(NPPES)</span></div>}
+              {p.contact_email && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-dim">Email: </span>
+                  <span className="text-xs text-accent font-semibold">{p.contact_email}</span>
+                  <span className="text-[9px] text-dim">({p.email_source || "enriched"})</span>
+                  {p.email_confidence && (
+                    <span
+                      className="px-1.5 py-0 rounded text-[9px] font-semibold"
+                      style={{
+                        background: p.email_confidence === "high" ? "rgba(34,197,94,0.2)" :
+                          p.email_confidence === "medium" ? "rgba(6,182,212,0.2)" :
+                          "rgba(245,158,11,0.2)",
+                        color: p.email_confidence === "high" ? "#4ade80" :
+                          p.email_confidence === "medium" ? "#22d3ee" :
+                          "#fbbf24",
+                      }}
+                    >
+                      {p.email_confidence} {p.email_confidence_score ? `(${p.email_confidence_score})` : ""}
+                    </span>
+                  )}
+                </div>
+              )}
+              {email && !p.contact_email && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-dim">Email: </span>
+                  <span className="text-xs text-accent font-semibold">{email}</span>
+                  <span className="px-1.5 py-0 rounded text-[9px] font-semibold" style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}>NPPES direct msg</span>
+                </div>
+              )}
               {email && p.contact_email && <div><span className="text-[10px] text-dim">NPPES Direct: </span><span className="text-xs text-dim">{email}</span></div>}
             </div>
           )}

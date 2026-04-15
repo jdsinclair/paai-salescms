@@ -62,6 +62,8 @@ export interface Provider {
   other_identifiers?: string;
   contact_email?: string;
   email_source?: string;
+  email_confidence?: string;
+  email_confidence_score?: number;
   enriched?: boolean;
   has_email?: boolean;
   tags?: string[];
