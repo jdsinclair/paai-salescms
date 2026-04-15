@@ -49,6 +49,7 @@ function filtersToParams(filters: Filters, sort: { field: string; dir: string },
   if (filters.tagFilter.length > 0) p.set("tagFilter", filters.tagFilter.join(","));
   if (filters.hasEmail) p.set("hasEmail", "true");
   if (filters.hasPhone) p.set("hasPhone", "true");
+  if (filters.minEmailConfidence > 0) p.set("minEmailConfidence", String(filters.minEmailConfidence));
 
   // Preset-specific: underserved caps ratio at 0.3
   if (filters.preset === "underserved") p.set("maxAssessRatio", "0.3");

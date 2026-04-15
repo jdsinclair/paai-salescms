@@ -215,15 +215,39 @@ export default function Sidebar({ states, filters, setFilters, applyPreset, allT
       {/* Contact & Code filters */}
       <div className="px-4 py-3 border-b border-border">
         <h3 className="text-[11px] uppercase tracking-widest text-dim mb-2">Contact & Enrichment</h3>
-        {[
-          { key: "hasEmail", label: "Has email" },
-          { key: "hasPhone", label: "Has phone" },
-        ].map((c) => (
-          <label key={c.key} className="flex items-center gap-1.5 text-xs mb-1 cursor-pointer text-txt">
-            <input type="checkbox" checked={filters[c.key as keyof Filters] as boolean} onChange={(e) => updateFilter(c.key as keyof Filters, e.target.checked)} className="accent-accent" />
-            {c.label}
-          </label>
-        ))}
+        <label className="flex items-center gap-1.5 text-xs mb-1.5 cursor-pointer text-txt">
+          <input type="checkbox" checked={filters.hasEmail} onChange={(e) => updateFilter("hasEmail", e.target.checked)} className="accent-accent" />
+          Has email (Clay enriched)
+        </label>
+        {filters.hasEmail && (
+          <div className="ml-5 mb-2">
+            <div className="text-[10px] text-dim mb-1">Min confidence:</div>
+            <div className="flex flex-wrap gap-1">
+              {[
+                { value: 0, label: "Any", color: "" },
+                { value: 30, label: "30+ Generic", color: "text-warn" },
+                { value: 50, label: "50+ Medium", color: "text-info" },
+                { value: 75, label: "75+ High", color: "text-ok" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => updateFilter("minEmailConfidence", opt.value)}
+                  className={`px-1.5 py-0.5 rounded text-[10px] cursor-pointer border ${
+                    (filters.minEmailConfidence || 0) === opt.value
+                      ? "border-accent bg-accent/15 text-accent"
+                      : "border-border bg-surface2 text-dim hover:text-txt hover:border-accent"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <label className="flex items-center gap-1.5 text-xs mb-1 cursor-pointer text-txt">
+          <input type="checkbox" checked={filters.hasPhone} onChange={(e) => updateFilter("hasPhone", e.target.checked)} className="accent-accent" />
+          Has phone
+        </label>
         <h3 className="text-[11px] uppercase tracking-widest text-dim mb-2 mt-3">Code Groups</h3>
         {[
           { key: "neuroOnly", label: "Neuro/Dev codes present" },

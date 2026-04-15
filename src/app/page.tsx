@@ -28,6 +28,7 @@ const DEFAULT_FILTERS: Filters = {
   tagFilter: [],
   hasEmail: false,
   hasPhone: false,
+  minEmailConfidence: 0,
 };
 
 export default function Home() {

@@ -45,8 +45,13 @@ function buildWhere(params: URLSearchParams) {
   const hasEmail = params.get("hasEmail");
   if (hasEmail === "true") {
     conditions.push(
-      sql`(${providers.email} IS NOT NULL AND ${providers.email} != '' OR ${providers.contactEmail} IS NOT NULL AND ${providers.contactEmail} != '')`
+      sql`${providers.contactEmail} IS NOT NULL AND ${providers.contactEmail} != ''`
     );
+  }
+
+  const minEmailConf = parseInt(params.get("minEmailConfidence") || "0");
+  if (minEmailConf > 0) {
+    conditions.push(gte(providers.emailConfidenceScore, minEmailConf));
   }
 
   const hasPhone = params.get("hasPhone");

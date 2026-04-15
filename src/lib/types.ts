@@ -84,6 +84,7 @@ export interface Filters {
   tagFilter: string[];
   hasEmail: boolean;
   hasPhone: boolean;
+  minEmailConfidence: number;
 }
 
 export interface Segment {
