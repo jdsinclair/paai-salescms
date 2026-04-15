@@ -6,6 +6,143 @@ import type { TagData, SegmentData, ProvidersResponse } from "@/lib/api";
 import { fetchProviders } from "@/lib/api";
 import { DEFAULT_SUBJECT, DEFAULT_BODY, TEMPLATE_VARIABLES, generateSalesEmail, buildVariables, renderTemplate } from "@/lib/email-generator";
 
+function titleCase(s: string | null | undefined): string {
+  if (!s) return "";
+  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function googleSearchStr(p: Provider): string {
+  const name = `${titleCase(p.first_name)} ${titleCase(p.last_name)}`.trim() || p.name || "";
+  const creds = p.credentials || "";
+  const city = titleCase(p.location_city || p.city);
+  const state = p.location_state || p.state || "";
+  return `${name} ${creds} Psychologist ${city} ${state} email`.trim();
+}
+
+function ManageRow({ provider: p, tab, onApprove, onDeny, onRefresh }: {
+  provider: Provider;
+  tab: "noEmail" | "unverified" | "verified";
+  onApprove: (npi: string) => void;
+  onDeny: (npi: string) => void;
+  onRefresh: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState("");
+
+  const hasPhone = p.phone && p.phone !== "NO_PHONE" && p.phone !== "NOT_FOUND";
+  const displayName = p.first_name || p.last_name
+    ? `${titleCase(p.first_name)} ${titleCase(p.last_name)}`.trim()
+    : p.name || "";
+
+  function copySearch() {
+    navigator.clipboard.writeText(googleSearchStr(p));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function saveEmail() {
+    if (!editVal.includes("@")) return;
+    await fetch("/api/providers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        npi: p.npi,
+        contact_email: editVal.trim(),
+        email_source: "manual",
+        email_confidence: "verified",
+        email_confidence_score: 100,
+      }),
+    });
+    setEditing(false);
+    onRefresh();
+  }
+
+  const confStyle = p.email_confidence === "verified" ? { bg: "rgba(34,197,94,0.2)", color: "#4ade80" }
+    : p.email_confidence === "denied" ? { bg: "rgba(239,68,68,0.2)", color: "#f87171" }
+    : p.email_confidence === "high" ? { bg: "rgba(34,197,94,0.15)", color: "#4ade80" }
+    : { bg: "rgba(245,158,11,0.2)", color: "#fbbf24" };
+
+  return (
+    <tr className="hover:bg-accent/5">
+      {/* Copy for Google */}
+      <td className="px-2 py-1.5 border-b border-border text-xs w-8">
+        <button
+          onClick={copySearch}
+          className="inline-flex items-center justify-center w-6 h-6 rounded bg-accent/10 text-accent text-[10px] cursor-pointer hover:bg-accent/20 border-none"
+          title={`Copy: ${googleSearchStr(p)}`}
+        >
+          {copied ? "\u2713" : "\u2398"}
+        </button>
+      </td>
+      {/* Name + credentials */}
+      <td className="px-2 py-1.5 border-b border-border text-xs text-txt">
+        <div className="font-semibold">{displayName}</div>
+        <div className="text-[10px] text-dim">{p.credentials} &middot; {p.provider_type}</div>
+      </td>
+      {/* City, ST */}
+      <td className="px-2 py-1.5 border-b border-border text-xs text-dim whitespace-nowrap">
+        {titleCase(p.location_city || p.city)}, {p.location_state || p.state}
+      </td>
+      {/* Phone */}
+      <td className="px-2 py-1.5 border-b border-border text-xs">
+        {hasPhone ? <span className="text-ok">{p.phone}</span> : <span className="text-dim">—</span>}
+      </td>
+      {/* Email — editable */}
+      <td className="px-2 py-1.5 border-b border-border text-xs">
+        {editing ? (
+          <div className="flex gap-1">
+            <input
+              type="email"
+              value={editVal}
+              onChange={(e) => setEditVal(e.target.value)}
+              className="w-48 bg-bg border border-accent text-txt text-xs rounded px-1.5 py-0.5 focus:outline-none"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") saveEmail(); if (e.key === "Escape") setEditing(false); }}
+            />
+            <button onClick={saveEmail} className="px-1 py-0 rounded border border-ok bg-ok/10 text-[9px] text-ok cursor-pointer">save</button>
+            <button onClick={() => setEditing(false)} className="px-1 py-0 rounded border border-border bg-surface2 text-[9px] text-dim cursor-pointer">x</button>
+          </div>
+        ) : p.contact_email ? (
+          <div className="flex items-center gap-1">
+            <span className={p.email_confidence === "denied" ? "text-dim line-through" : "text-accent"}>{p.contact_email}</span>
+            <button onClick={() => { setEditVal(p.contact_email || ""); setEditing(true); }} className="text-[8px] text-dim cursor-pointer hover:text-txt">edit</button>
+          </div>
+        ) : (
+          <button onClick={() => { setEditVal(""); setEditing(true); }} className="text-[10px] text-accent cursor-pointer hover:underline">+ add</button>
+        )}
+      </td>
+      {/* Confidence */}
+      <td className="px-2 py-1.5 border-b border-border text-xs">
+        {p.email_confidence ? (
+          <span className="px-1.5 py-0 rounded text-[9px] font-semibold" style={{ background: confStyle.bg, color: confStyle.color }}>
+            {p.email_confidence}
+          </span>
+        ) : <span className="text-dim">—</span>}
+      </td>
+      {/* Revenue */}
+      <td className="px-2 py-1.5 border-b border-border text-xs text-right tabular-nums">${p.revenue_proxy.toLocaleString()}</td>
+      {/* Actions */}
+      <td className="px-2 py-1.5 border-b border-border text-xs">
+        <div className="flex gap-1">
+          {tab === "unverified" && (
+            <>
+              <button onClick={() => onApprove(p.npi)} className="px-1.5 py-0 rounded border border-ok bg-ok/10 text-[9px] text-ok cursor-pointer hover:bg-ok/20">approve</button>
+              <button onClick={() => onDeny(p.npi)} className="px-1.5 py-0 rounded border border-err bg-err/10 text-[9px] text-err cursor-pointer hover:bg-err/20">deny</button>
+            </>
+          )}
+          {tab === "verified" && (
+            <button onClick={() => onDeny(p.npi)} className="px-1.5 py-0 rounded border border-border bg-surface2 text-[9px] text-dim cursor-pointer hover:text-err">revoke</button>
+          )}
+          {tab === "noEmail" && !p.contact_email && (
+            <button onClick={() => { setEditVal(""); setEditing(true); }} className="px-1.5 py-0 rounded border border-accent bg-accent/10 text-[9px] text-accent cursor-pointer hover:bg-accent/20">add email</button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 interface SegmentWithEmail extends SegmentData {
   emailSubject?: string;
   emailBody?: string;
@@ -687,69 +824,20 @@ export default function SegmentsWorkspace({ segments, dbTags, onLoadSegment, onD
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">NPI</th>
-                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Name</th>
-                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">City, ST</th>
-                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Phone</th>
-                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Email</th>
-                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Confidence</th>
-                <th className="bg-surface2 px-3 py-2 text-right text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Revenue</th>
-                <th className="bg-surface2 px-3 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Actions</th>
+                <th className="bg-surface2 px-2 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10 w-8">Search</th>
+                <th className="bg-surface2 px-2 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Name / Type</th>
+                <th className="bg-surface2 px-2 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">City, ST</th>
+                <th className="bg-surface2 px-2 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Phone</th>
+                <th className="bg-surface2 px-2 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Email</th>
+                <th className="bg-surface2 px-2 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Conf</th>
+                <th className="bg-surface2 px-2 py-2 text-right text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Revenue</th>
+                <th className="bg-surface2 px-2 py-2 text-left text-[10px] uppercase text-dim border-b border-border sticky top-0 z-10">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currentList.map((p) => {
-                const hasPhone = p.phone && p.phone !== "NO_PHONE" && p.phone !== "NOT_FOUND";
-                return (
-                  <tr key={p.npi} className="hover:bg-accent/5">
-                    <td className="px-3 py-1.5 border-b border-border text-xs text-dim">{p.npi}</td>
-                    <td className="px-3 py-1.5 border-b border-border text-xs text-txt">
-                      {p.first_name || p.last_name
-                        ? `${(p.first_name || "").replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\B\w+/g, (c) => c.toLowerCase())} ${(p.last_name || "").replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\B\w+/g, (c) => c.toLowerCase())}`.trim()
-                        : p.name}
-                    </td>
-                    <td className="px-3 py-1.5 border-b border-border text-xs text-dim">{p.city}, {p.state}</td>
-                    <td className="px-3 py-1.5 border-b border-border text-xs">{hasPhone ? <span className="text-ok">{p.phone}</span> : <span className="text-dim">—</span>}</td>
-                    <td className="px-3 py-1.5 border-b border-border text-xs">
-                      {p.contact_email ? (
-                        <span className={p.email_confidence === "denied" ? "text-dim line-through" : "text-accent"}>{p.contact_email}</span>
-                      ) : (
-                        <span className="text-err">none</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-1.5 border-b border-border text-xs">
-                      {p.email_confidence ? (
-                        <span
-                          className="px-1.5 py-0 rounded text-[9px] font-semibold"
-                          style={{
-                            background: p.email_confidence === "verified" ? "rgba(34,197,94,0.2)" : p.email_confidence === "denied" ? "rgba(239,68,68,0.2)" : p.email_confidence === "high" ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.2)",
-                            color: p.email_confidence === "verified" ? "#4ade80" : p.email_confidence === "denied" ? "#f87171" : p.email_confidence === "high" ? "#4ade80" : "#fbbf24",
-                          }}
-                        >
-                          {p.email_confidence}
-                        </span>
-                      ) : <span className="text-dim">—</span>}
-                    </td>
-                    <td className="px-3 py-1.5 border-b border-border text-xs text-right tabular-nums">${p.revenue_proxy.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 border-b border-border text-xs">
-                      <div className="flex gap-1">
-                        {manageTab === "unverified" && (
-                          <>
-                            <button onClick={() => approveEmail(p.npi)} className="px-1.5 py-0 rounded border border-ok bg-ok/10 text-[9px] text-ok cursor-pointer hover:bg-ok/20">approve</button>
-                            <button onClick={() => denyEmail(p.npi)} className="px-1.5 py-0 rounded border border-err bg-err/10 text-[9px] text-err cursor-pointer hover:bg-err/20">deny</button>
-                          </>
-                        )}
-                        {manageTab === "verified" && (
-                          <button onClick={() => denyEmail(p.npi)} className="px-1.5 py-0 rounded border border-border bg-surface2 text-[9px] text-dim cursor-pointer hover:text-err">revoke</button>
-                        )}
-                        {manageTab === "noEmail" && (
-                          <span className="text-[9px] text-dim">Export to Clay or remove</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {currentList.map((p) => (
+                <ManageRow key={p.npi} provider={p} tab={manageTab} onApprove={approveEmail} onDeny={denyEmail} onRefresh={() => activeSeg && openManage(activeSeg)} />
+              ))}
               {currentList.length === 0 && (
                 <tr><td colSpan={8} className="px-3 py-8 text-center text-dim text-xs">
                   {manageTab === "noEmail" ? "All providers have emails!" : manageTab === "unverified" ? "No unverified emails" : "No verified emails yet"}
