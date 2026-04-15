@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { Provider } from "@/lib/types";
-import { generateSalesEmail } from "@/lib/email-generator";
 
 const GROUP_STYLES: Record<string, { bg: string; text: string }> = {
   ASSESSMENT_CORE: { bg: "rgba(99,102,241,0.2)", text: "#818cf8" },
@@ -139,85 +138,6 @@ function EmailField({ provider: p, nppesEmail, onUpdateEmail }: { provider: Prov
           <span className="px-1 py-0 rounded text-[8px] font-semibold" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>HIE</span>
         </div>
       )}
-    </div>
-  );
-}
-
-function EmailSection({ provider }: { provider: Provider }) {
-  const [generated, setGenerated] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  if (!generated) {
-    return (
-      <button
-        onClick={() => { setGenerated(true); setExpanded(true); }}
-        className="w-full mb-4 flex items-center justify-center gap-2 px-3 py-2 rounded border border-accent/30 bg-accent/5 text-accent text-[11px] cursor-pointer hover:bg-accent/10 transition-colors"
-      >
-        <span style={{ fontSize: 14 }}>&#9993;</span>
-        Generate Sales Email
-      </button>
-    );
-  }
-
-  if (!expanded) {
-    return (
-      <button
-        onClick={() => setExpanded(true)}
-        className="w-full mb-4 flex items-center justify-center gap-2 px-3 py-2 rounded border border-accent/30 bg-accent/10 text-accent text-[11px] cursor-pointer hover:bg-accent/15 transition-colors"
-      >
-        <span style={{ fontSize: 14 }}>&#9993;</span>
-        View Sales Email
-      </button>
-    );
-  }
-
-  const email = generateSalesEmail(provider);
-
-  function copyToClipboard() {
-    const full = `Subject: ${email.subject}\n\n${email.body}`;
-    navigator.clipboard.writeText(full);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <div className="mb-4 bg-bg border border-accent/30 rounded overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <span className="text-[10px] text-accent uppercase font-semibold tracking-wider">Generated Email</span>
-        <div className="flex gap-1.5">
-          <button
-            onClick={copyToClipboard}
-            className="px-2 py-0.5 rounded border border-border bg-surface2 text-[10px] text-txt cursor-pointer hover:bg-border"
-          >
-            {copied ? "Copied!" : "Copy"}
-          </button>
-          <button
-            onClick={() => setExpanded(false)}
-            className="px-2 py-0.5 rounded border border-border bg-surface2 text-[10px] text-txt cursor-pointer hover:bg-border"
-          >
-            x
-          </button>
-        </div>
-      </div>
-      <div className="px-3 py-2">
-        <div className="mb-2">
-          <span className="text-[10px] text-dim uppercase">Subject</span>
-          <div className="text-xs text-txt font-semibold mt-0.5">{email.subject}</div>
-        </div>
-        <div className="mb-2">
-          <span className="text-[10px] text-dim uppercase">Data Signals Used</span>
-          <div className="mt-0.5">
-            {email.insights.map((insight, i) => (
-              <div key={i} className="text-[10px] text-info">• {insight}</div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <span className="text-[10px] text-dim uppercase">Body</span>
-          <pre className="mt-1 text-[11px] text-txt whitespace-pre-wrap leading-relaxed" style={{ fontFamily: "inherit" }}>{email.body}</pre>
-        </div>
-      </div>
     </div>
   );
 }
@@ -433,9 +353,6 @@ export default function DetailPanel({ provider: p, onClose, onRemoveTag, onUpdat
           <span className="text-dim">none</span>
         )}
       </div>
-
-      {/* Sales Email */}
-      <EmailSection provider={p} />
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-2 mb-4">

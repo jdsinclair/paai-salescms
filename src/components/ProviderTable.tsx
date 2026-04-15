@@ -92,13 +92,6 @@ export default function ProviderTable({ providers, selected, maxRevenue, onToggl
                     <button onClick={() => onClickNpi(p.npi)} className="text-accent hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit text-xs">
                       {p.npi}
                     </button>
-                    <button
-                      onClick={() => onClickNpi(p.npi)}
-                      className="inline-flex items-center justify-center w-4 h-4 rounded bg-accent/15 text-accent text-[10px] cursor-pointer hover:bg-accent/30 border-none flex-shrink-0"
-                      title="View profile & generate email"
-                    >
-                      &#9993;
-                    </button>
                     {p.contact_email && (
                       <span
                         className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] cursor-default flex-shrink-0 ${p.email_confidence === "denied" ? "opacity-40" : ""}`}

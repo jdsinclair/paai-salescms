@@ -101,6 +101,21 @@ export const segments = pgTable("segments", {
   name: text("name").notNull(),
   filtersJson: text("filters_json"),
   providerCount: integer("provider_count").default(0),
+  emailSubject: text("email_subject"),
+  emailBody: text("email_body"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const sendQueue = pgTable("send_queue", {
+  id: text("id").primaryKey(),
+  segmentId: text("segment_id").notNull(),
+  npi: text("npi").notNull(),
+  emailTo: text("email_to"),
+  emailSubject: text("email_subject"),
+  emailBody: text("email_body"),
+  status: text("status").default("pending"), // pending, queued, skipped, sent, failed
+  reviewedAt: timestamp("reviewed_at"),
+  sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -25,6 +25,10 @@ export interface SegmentData {
   name: string;
   filters: Filters;
   providerCount: number;
+  emailSubject?: string;
+  emailBody?: string;
+  hasEmail?: boolean;
+  queueStats?: { total: number; pending: number; queued: number; skipped: number; sent: number } | null;
   createdAt: string;
 }
 

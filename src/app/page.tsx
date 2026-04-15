@@ -341,6 +341,7 @@ export default function Home() {
             onLoadSegment={(seg) => { loadSegment(seg); setTab("providers"); }}
             onDeleteSegment={handleDeleteSegment}
             onSwitchToProviders={() => setTab("providers")}
+            onRefreshSegments={async () => { const seg = await fetchSegments(); setSavedSegments(seg); }}
           />
         ) : (
           <EmailReview onDone={() => { setTab("providers"); loadProviders(); }} />
