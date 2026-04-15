@@ -1,98 +1,65 @@
 import type { Provider } from "./types";
 
+// Fix NPPES ALL-CAPS names to proper case
+function titleCase(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    .toLowerCase()
+    .split(/[\s-]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(s.includes("-") ? "-" : " ");
+}
+
 export function generateSalesEmail(p: Provider): { subject: string; body: string; insights: string[] } {
-  const firstName = p.first_name || p.name?.split(",")[1]?.trim()?.split(" ")[0] || "there";
-  const lastName = p.last_name || p.name?.split(",")[0]?.trim() || "";
+  const lastName = titleCase(p.last_name || p.name?.split(",")[0]?.trim());
+  const firstName = titleCase(p.first_name || p.name?.split(",")[1]?.trim()?.split(" ")[0]);
   const isOrg = p.entity_type === "O";
-  const greeting = isOrg ? `Hi ${p.name} team` : `Hi Dr. ${lastName}`;
+  const greeting = isOrg ? `Dear ${titleCase(p.name)} team` : `Dear Dr. ${lastName}`;
 
-  // Determine what kind of practice this is based on data signals
+  const evalCount = p.eval_patients || 0;
+  const avgHrs = p.avg_eval_hours || 0;
   const isNeuropsych = (p.neuro_units || 0) > 0;
-  const isHighVolume = p.assessment_units > 200;
-  const isMediumVolume = p.assessment_units > 50 && p.assessment_units <= 200;
-  const hasAdminStaff = p.admin_units > 50;
-  const isComprehensive = p.complexity_score > 0.25;
-  const isScaling = hasAdminStaff && isMediumVolume;
-  const assessRatioPct = Math.round(p.assessment_ratio * 100);
 
-  // Build personalized insights
-  const insights: string[] = [];
-
-  if (isNeuropsych && isComprehensive) {
-    insights.push(`Comprehensive neuropsych practice — multi-hour batteries with high add-on billing`);
-  } else if (isNeuropsych) {
-    insights.push(`Neuropsych evaluations (96132/33) are a meaningful part of the practice`);
-  }
-
-  if (isHighVolume) {
-    insights.push(`High-volume testing operation — ${p.assessment_units.toLocaleString()} assessment units/year`);
-  } else if (isMediumVolume) {
-    insights.push(`Growing assessment volume — ${p.assessment_units.toLocaleString()} units/year`);
-  }
-
-  if (hasAdminStaff) {
-    insights.push(`Has test administration staff (${p.admin_units.toLocaleString()} admin units) — infrastructure already in place`);
-  }
-
-  if (assessRatioPct > 60) {
-    insights.push(`Assessment-focused practice — ${assessRatioPct}% of billing is evaluations`);
-  } else if (assessRatioPct > 30) {
-    insights.push(`Meaningful assessment component — ${assessRatioPct}% of billing mix`);
-  }
-
-  // Determine the angle
-  let angle: string;
-  let painPoint: string;
-  let valueProp: string;
-
-  if (isHighVolume && isComprehensive) {
-    angle = "high-volume comprehensive";
-    painPoint = `Running ${p.assessment_units.toLocaleString()}+ evaluations a year with comprehensive batteries, report writing is probably the biggest bottleneck in your workflow`;
-    valueProp = `PsychAssist.ai automates the synthesis of test data into structured clinical narratives — cutting report turnaround from hours to minutes while maintaining the clinical depth your comprehensive evaluations require`;
-  } else if (isHighVolume && !isComprehensive) {
-    angle = "high-volume standardized";
-    painPoint = `At your volume (${p.assessment_units.toLocaleString()}+ evals/year), even small time savings per report compound into days of recovered capacity`;
-    valueProp = `PsychAssist.ai generates first-draft reports from your test data in minutes — consistent structure, integrated scores, ready for your clinical review. Practices at your scale typically recover 10-15 hours per week`;
-  } else if (isScaling) {
-    angle = "scaling practice";
-    painPoint = `You've invested in admin staff to scale test administration — but report writing often becomes the new bottleneck as volume grows`;
-    valueProp = `PsychAssist.ai helps you match your report output to your testing capacity. It synthesizes scores into clinical narratives so your psychologists can review and finalize rather than write from scratch`;
-  } else if (isNeuropsych) {
-    angle = "neuropsych specialist";
-    painPoint = `Neuropsych reports are some of the most complex in the field — integrating cognitive, behavioral, and functional data into a coherent clinical narrative takes real time`;
-    valueProp = `PsychAssist.ai is built for this complexity. It ingests your full battery results, cross-references normative data, identifies patterns across domains, and generates integrated neuropsych reports that capture the clinical reasoning — not just the numbers`;
+  // Build volume description
+  let volumePhrase: string;
+  if (evalCount > 200) {
+    volumePhrase = `process over ${evalCount.toLocaleString()} evaluations annually`;
+  } else if (evalCount > 50) {
+    volumePhrase = `run a substantial assessment practice with ${evalCount.toLocaleString()}+ evaluations per year`;
+  } else if (evalCount > 0) {
+    volumePhrase = `conduct ${isNeuropsych ? "neuropsychological" : "psychological"} evaluations as part of your practice`;
   } else {
-    angle = "assessment practice";
-    painPoint = `If you're like most assessment psychologists, report writing takes longer than the evaluation itself`;
-    valueProp = `PsychAssist.ai synthesizes your test data into structured clinical reports — handling score integration, normative comparisons, and narrative generation so you can focus on clinical interpretation rather than document formatting`;
+    volumePhrase = `are actively involved in ${isNeuropsych ? "neuropsychological" : "psychological"} assessment`;
   }
 
-  const city = p.location_city || p.city || "";
-  const state = p.location_state || p.state || "";
-  const locationRef = city && state ? ` in ${city}, ${state}` : "";
+  // Build insights
+  const insights: string[] = [];
+  if (evalCount > 0) insights.push(`${evalCount.toLocaleString()} evaluations/year (based on Medicare base codes)`);
+  if (avgHrs > 0) insights.push(`${avgHrs.toFixed(1)} average hours per evaluation`);
+  if (p.admin_units > 50) insights.push(`Active test administration staff (${p.admin_units.toLocaleString()} admin units)`);
+  if (isNeuropsych) insights.push(`Neuropsych-focused practice (96132/33 present)`);
+  if (p.assessment_ratio > 0.5) insights.push(`Assessment-focused: ${(p.assessment_ratio * 100).toFixed(0)}% of billing`);
 
-  const subject = isNeuropsych
-    ? `Report writing for neuropsych evaluations${locationRef}`
-    : isHighVolume
-    ? `Scaling report output at your assessment volume`
-    : `Faster psych assessment reports — PsychAssist.ai`;
+  const city = titleCase(p.location_city || p.city);
+  const state = p.location_state || p.state || "";
+
+  const subject = `Quick intro — report writing for ${isNeuropsych ? "neuropsych" : "psych"} evals`;
 
   const body = `${greeting},
 
-${painPoint}.
+Apologies for the cold outreach. I'm Dr. Barnes, founder of PsychAssist.ai and a fellow assessment psychologist.
 
-I wanted to introduce PsychAssist.ai — ${valueProp}.
+My platform is the leading tool to accelerate holistic psychological report writing — keeping your clinical voice, not AI slop, not GPT prayer circles.
 
-A few things that caught my attention about your practice:
-${insights.map((i) => `  • ${i}`).join("\n")}
+I noticed via Medicare data that you ${volumePhrase}${city ? ` out of ${city}, ${state}` : ""}. We work with a lot of doctors like you, and we know we can make this exponentially easier — better visuals, holistic data integration, earlier diagnostic clarity, all while preserving the way you write.
 
-Would you be open to a 15-minute call this week to see if it's a fit? Happy to show you a demo with a sample report in your specialty area.
+Would love to show you what we're building. If you're open to 15 minutes, grab a time here:
+
+https://calendly.com/psychassist
 
 Best,
-[Your Name]
-PsychAssist.ai
-
-P.S. We work with ${isNeuropsych ? "neuropsych" : "assessment"} practices across the country and consistently hear that report writing is the #1 time sink. If that resonates, I'd love to chat.`;
+Dr. Barnes
+Founder, PsychAssist.ai`;
 
   return { subject, body, insights };
 }
