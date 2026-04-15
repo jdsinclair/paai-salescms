@@ -95,6 +95,7 @@ export async function GET(req: NextRequest) {
     total_units: "total_units",
     total_revenue: "total_revenue",
     name: "name",
+    email_confidence_score: "email_confidence_score",
   };
   const col = sortFields[sortField] || "revenue_proxy";
   const direction = sortDir === "asc" ? "ASC" : "DESC";

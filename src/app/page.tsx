@@ -11,6 +11,7 @@ import TagModal from "@/components/TagModal";
 import SegmentModal from "@/components/SegmentModal";
 import SegmentsWorkspace from "@/components/SegmentsWorkspace";
 import ImportModal from "@/components/ImportModal";
+import EmailReview from "@/components/EmailReview";
 import Toast from "@/components/Toast";
 
 const DEFAULT_FILTERS: Filters = {
@@ -35,7 +36,7 @@ export default function Home() {
   const [states, setStates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
-  const [tab, setTab] = useState<"providers" | "segments">("providers");
+  const [tab, setTab] = useState<"providers" | "segments" | "emails">("providers");
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
   const [sort, setSort] = useState<{ field: string; dir: "asc" | "desc" }>({ field: "revenue_proxy", dir: "desc" });
   const [page, setPage] = useState(1);
@@ -236,6 +237,9 @@ export default function Home() {
             Segments & Pipeline
             {savedSegments.length > 0 && <span className="ml-1.5 bg-accent/20 text-accent text-[10px] px-1.5 py-0.5 rounded-full">{savedSegments.length}</span>}
           </button>
+          <button onClick={() => setTab("emails")} className={`px-5 py-2.5 text-xs font-semibold cursor-pointer border-b-2 transition-all ${tab === "emails" ? "border-accent text-accent bg-accent/5" : "border-transparent text-dim hover:text-txt"}`}>
+            Emails
+          </button>
           {/* Loading indicator */}
           {fetching && <div className="ml-auto mr-4 w-4 h-4 border-2 border-border border-t-accent rounded-full animate-spin" />}
         </div>
@@ -317,7 +321,7 @@ export default function Home() {
               </select>
             </div>
           </>
-        ) : (
+        ) : tab === "segments" ? (
           <SegmentsWorkspace
             segments={savedSegments}
             dbTags={dbTags}
@@ -325,6 +329,8 @@ export default function Home() {
             onDeleteSegment={handleDeleteSegment}
             onSwitchToProviders={() => setTab("providers")}
           />
+        ) : (
+          <EmailReview onDone={() => { setTab("providers"); loadProviders(); }} />
         )}
       </div>
 
