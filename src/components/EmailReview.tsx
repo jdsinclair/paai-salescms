@@ -28,7 +28,7 @@ export default function EmailReview({ onDone }: Props) {
           states: [], minAssessUnits: 0, minAssessRatio: 0, minAdminUnits: 0,
           minRevenue: 0, minComplexity: 0, neuroOnly: false, orgOnly: false,
           indivOnly: false, search: "", preset: "", tagFilter: [],
-          hasEmail: true, hasPhone: false, minEmailConfidence: minConf,
+          hasEmail: true, hasPhone: false, minEmailConfidence: minConf, minEvalPatients: 0,
         },
         { field: "email_confidence_score", dir: "asc" },
         page, 100

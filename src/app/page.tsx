@@ -30,6 +30,7 @@ const DEFAULT_FILTERS: Filters = {
   hasEmail: false,
   hasPhone: false,
   minEmailConfidence: 0,
+  minEvalPatients: 0,
 };
 
 export default function Home() {
@@ -276,11 +277,11 @@ export default function Home() {
               <span className="text-dim">Sort:</span>
               {[
                 { field: "revenue_proxy", label: "Revenue $" },
-                { field: "assessment_units", label: "Assess Units" },
+                { field: "eval_patients", label: "Patients" },
+                { field: "avg_eval_hours", label: "Avg Hrs" },
+                { field: "assessment_units", label: "Units" },
                 { field: "complexity_score", label: "Complexity" },
                 { field: "assessment_ratio", label: "Ratio" },
-                { field: "admin_units", label: "Admin Units" },
-                { field: "total_units", label: "Total Units" },
               ].map((s) => (
                 <button
                   key={s.field}

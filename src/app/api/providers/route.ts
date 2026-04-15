@@ -61,6 +61,9 @@ function buildWhere(params: URLSearchParams) {
     );
   }
 
+  const minEvalPatients = parseInt(params.get("minEvalPatients") || "0");
+  if (minEvalPatients > 0) conditions.push(gte(providers.evalPatients, minEvalPatients));
+
   // Tag filter
   const tagFilter = params.get("tagFilter");
   if (tagFilter) {
@@ -96,6 +99,8 @@ export async function GET(req: NextRequest) {
     total_revenue: "total_revenue",
     name: "name",
     email_confidence_score: "email_confidence_score",
+    eval_patients: "eval_patients",
+    avg_eval_hours: "avg_eval_hours",
   };
   const col = sortFields[sortField] || "revenue_proxy";
   const direction = sortDir === "asc" ? "ASC" : "DESC";
@@ -156,6 +161,9 @@ export async function GET(req: NextRequest) {
     assessment_ratio: r.assessmentRatio ?? 0,
     complexity_score: r.complexityScore ?? 0,
     neuro_flag: r.neuroFlag ?? false,
+    eval_patients: r.evalPatients ?? 0,
+    admin_patients: r.adminPatients ?? 0,
+    avg_eval_hours: r.avgEvalHours ?? 0,
     codes: r.codesJson ? JSON.parse(r.codesJson) : {},
     crm_status: r.crmStatus,
     crm_notes: r.crmNotes,

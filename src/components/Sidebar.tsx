@@ -194,6 +194,7 @@ export default function Sidebar({ states, filters, setFilters, applyPreset, allT
         {[
           { key: "minAssessUnits", label: "Min Assess Units", ph: "e.g. 200", step: "1" },
           { key: "minAssessRatio", label: "Min Assess Ratio", ph: "e.g. 0.4", step: "0.01" },
+          { key: "minEvalPatients", label: "Min Patients", ph: "e.g. 50", step: "1" },
           { key: "minAdminUnits", label: "Min Admin Units", ph: "e.g. 100", step: "1" },
           { key: "minRevenue", label: "Min Revenue ($)", ph: "e.g. 10000", step: "1" },
           { key: "minComplexity", label: "Min Complexity", ph: "e.g. 0.3", step: "0.01" },

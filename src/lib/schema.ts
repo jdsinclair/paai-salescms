@@ -20,6 +20,9 @@ export const providers = pgTable("providers", {
   assessmentRatio: real("assessment_ratio").default(0),
   complexityScore: real("complexity_score").default(0),
   neuroFlag: boolean("neuro_flag").default(false),
+  evalPatients: integer("eval_patients").default(0),
+  adminPatients: integer("admin_patients").default(0),
+  avgEvalHours: real("avg_eval_hours").default(0),
   // CRM fields
   crmStatus: text("crm_status").default("new"),
   crmNotes: text("crm_notes"),

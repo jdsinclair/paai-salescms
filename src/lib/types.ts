@@ -24,6 +24,9 @@ export interface Provider {
   assessment_ratio: number;
   complexity_score: number;
   neuro_flag: boolean;
+  eval_patients: number;
+  admin_patients: number;
+  avg_eval_hours: number;
   // CRM fields (from DB)
   crm_status?: string;
   crm_notes?: string;
@@ -85,6 +88,7 @@ export interface Filters {
   hasEmail: boolean;
   hasPhone: boolean;
   minEmailConfidence: number;
+  minEvalPatients: number;
 }
 
 export interface Segment {

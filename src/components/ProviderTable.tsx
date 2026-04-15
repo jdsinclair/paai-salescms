@@ -17,6 +17,8 @@ const TOOLTIPS: Record<string, string> = {
   revenue: "Assessment-only Medicare allowed $ (96130-33). Units x avg allowed. #1 sort signal.",
   assess: "Total units from 96130 (psych eval 1st hr), 96131 (+hr), 96132 (neuropsych 1st hr), 96133 (+hr).",
   admin: "Units from 96136-39 (test administration). High = technicians running tests at scale.",
+  patients: "Number of unique evaluations based on base codes (96130 + 96132). Each base code is billed once per patient — this is your real patient count.",
+  avghrs: "Average hours per evaluation. Total assessment units / base code count. Higher = more comprehensive batteries (neuropsych). Lower = faster standardized evals (ADHD screens).",
   ratio: "Assessment units / total units. >40% = assessment-focused practice.",
   complex: "% add-on codes (96131/33/37/39). High = multi-hour comprehensive evals.",
   groups: "ASSESS=96130-33, ADMIN=96136-39, NEURO=96112/13/16/21, NOISE=90791/92+96127/46.",
@@ -56,11 +58,13 @@ export default function ProviderTable({ providers, selected, maxRevenue, onToggl
               { id: "st", label: "ST", w: "w-12" },
               { id: "", label: "City", w: "w-24" },
               { id: "type", label: "Type", w: "w-28" },
-              { id: "revenue", label: "Revenue $", w: "w-32", right: true },
-              { id: "assess", label: "Assess", w: "w-20", right: true },
-              { id: "admin", label: "Admin", w: "w-20", right: true },
-              { id: "ratio", label: "Ratio", w: "w-16", right: true },
-              { id: "complex", label: "Complex", w: "w-16", right: true },
+              { id: "revenue", label: "Revenue $", w: "w-28", right: true },
+              { id: "patients", label: "Patients", w: "w-18", right: true },
+              { id: "avghrs", label: "Avg Hrs", w: "w-16", right: true },
+              { id: "assess", label: "Assess", w: "w-18", right: true },
+              { id: "admin", label: "Admin", w: "w-18", right: true },
+              { id: "ratio", label: "Ratio", w: "w-14", right: true },
+              { id: "complex", label: "Complex", w: "w-14", right: true },
               { id: "groups", label: "Groups", w: "w-36" },
               { id: "", label: "Tags", w: "w-32" },
             ].map((col, i) => (
@@ -127,6 +131,8 @@ export default function ProviderTable({ providers, selected, maxRevenue, onToggl
                     <span className="block h-full rounded-full" style={{ width: `${barW}%`, background: p.revenue_proxy > 50000 ? "#22c55e" : p.revenue_proxy > 10000 ? "#f59e0b" : "#8888aa" }} />
                   </span>
                 </td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums font-semibold">{p.eval_patients > 0 ? p.eval_patients.toLocaleString() : <span className="text-dim">—</span>}</td>
+                <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums">{p.avg_eval_hours > 0 ? `${p.avg_eval_hours.toFixed(1)}h` : <span className="text-dim">—</span>}</td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums">{p.assessment_units.toLocaleString()}</td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums">{p.admin_units.toLocaleString()}</td>
                 <td className="px-2.5 py-1.5 border-b border-border text-xs text-right tabular-nums">{(p.assessment_ratio * 100).toFixed(1)}%</td>
